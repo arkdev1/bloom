@@ -272,7 +272,6 @@ private struct MarkdownBlockView: View {
         return TranscriptTextView(
             text: text,
             linkColor: Palette.linkNSColor,
-            selectionColor: .selectedTextBackgroundColor,
             copyPrefix: prefix ?? copyPrefix,
             copySeparatorBefore: separatorBefore,
             actions: linkActions
