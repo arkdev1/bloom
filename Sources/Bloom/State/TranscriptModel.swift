@@ -50,6 +50,39 @@ struct TranscriptRow: Identifiable, Hashable, Sendable {
         durationMS = message.durationMS
         refID = message.refID
     }
+
+    /// This row in the only terms `TranscriptFold` cares about.
+    ///
+    /// Here rather than inside `TranscriptModel.presentationFolds`, where it was written, because
+    /// the subagent pane folds its rows too and a second copy of what counts as settled or featured
+    /// is a subagent pane that folds differently from the chat the day one of them changes.
+    ///
+    /// - Parameters:
+    ///   - seq: the identity the fold names a run by. The row's own `seq` for a stored row; the
+    ///     subagent pane passes its payload derived id, because its positions move on a re-read.
+    ///   - isFresh: a tool call made moments ago. Only the live chat knows, so it is handed in.
+    nonisolated func foldFact(seq: Int? = nil, isFresh: Bool = false) -> TranscriptFold.Fact {
+        let settled: Bool
+        switch kind {
+        case .toolUse: settled = resultPayload != nil
+        case .permissionAsk: settled = permissionDecision != nil
+        default: settled = true
+        }
+        return TranscriptFold.Fact(
+            seq: seq ?? self.seq,
+            kind: kind,
+            failed: isError || refusal != nil,
+            featured: isQuestion
+                || MediaShowRow.isCall(payload) || CodexImageViewRow.isCall(payload),
+            drawsNothing: TranscriptNoise.isHidden(self)
+                || TranscriptRowInk.drawsNothing(kind: kind, payload: payload),
+            settled: settled,
+            isFresh: isFresh,
+            toolUseID: kind == .toolUse ? refID : nil,
+            parentToolUseID: parentToolUseID,
+            opensTurn: BackgroundWake.isRow(kind: kind, payload: payload)
+        )
+    }
 }
 
 /// The state behind one session's transcript: the rows, whether the agent is running, and the
@@ -115,25 +148,8 @@ final class TranscriptModel {
     func presentationFolds() -> TranscriptFold.Folds {
         let freshCalls = freshCalls
         return foldCache.resolve(rows.lazy.map { row in
-            let settled: Bool
-            switch row.kind {
-            case .toolUse: settled = row.resultPayload != nil
-            case .permissionAsk: settled = row.permissionDecision != nil
-            default: settled = true
-            }
-            return TranscriptFold.Fact(
-                seq: row.seq,
-                kind: row.kind,
-                failed: row.isError || row.refusal != nil,
-                featured: row.isQuestion
-                    || MediaShowRow.isCall(row.payload) || CodexImageViewRow.isCall(row.payload),
-                drawsNothing: TranscriptNoise.isHidden(row)
-                    || TranscriptRowInk.drawsNothing(kind: row.kind, payload: row.payload),
-                settled: settled,
-                isFresh: row.kind == .toolUse && row.refID.map(freshCalls.contains) == true,
-                toolUseID: row.kind == .toolUse ? row.refID : nil,
-                parentToolUseID: row.parentToolUseID,
-                opensTurn: BackgroundWake.isRow(kind: row.kind, payload: row.payload)
+            row.foldFact(
+                isFresh: row.kind == .toolUse && row.refID.map(freshCalls.contains) == true
             )
         })
     }

@@ -272,8 +272,11 @@ struct TranscriptListView: View {
 
     /// A user bubble takes this share of the pane, and never gets narrower than the floor, so a
     /// long prompt wraps sensibly and a short one still reads as one side of a conversation.
-    private static let bubbleShare: CGFloat = 0.7
-    private static let bubbleFloor: CGFloat = 240
+    /// Not private, because the subagent pane draws a prompt in the same bubble and a copied 0.7
+    /// is a bubble that stops matching the chat the moment this one changes.
+    /// Nonisolated, because it is read inside a geometry closure SwiftUI runs off the main actor.
+    nonisolated static let bubbleShare: CGFloat = 0.7
+    nonisolated static let bubbleFloor: CGFloat = 240
 
     // MARK: - The rows
 
