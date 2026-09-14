@@ -1138,6 +1138,8 @@ struct CountLabel: View {
     /// rather than sitting inside a selected row.
     var isOnSelection = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// What the number is always at least as wide as. Three digits, in figures that are all one
     /// width, so nothing under a thousand moves it. A thousand and over grows it by one digit and
     /// no more, because it is set without a thousands separator: see `Figures.count`.
@@ -1154,7 +1156,9 @@ struct CountLabel: View {
             Text(count, format: Figures.count)
                 .monospacedDigit()
                 .lineLimit(1)
+                .contentTransition(.numericText(value: Double(count)))
         }
+        .animation(reduceMotion ? nil : Motion.hover, value: count)
         .font(Typo.caption)
         // One step quieter than the label it follows, in both states, because it is the label's
         // subordinate rather than a second thing to read.
@@ -1172,15 +1176,18 @@ struct DiffStatLabel: View {
     var compact: Bool = false
 
     @Environment(\.isOnEmphasizedSelection) private var isOnSelection
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: Metrics.spacingSmall) {
             if additions > 0 {
                 Text("+\(Self.abbreviate(additions))")
+                    .contentTransition(.numericText(value: Double(additions)))
                     .foregroundStyle(isOnSelection ? Palette.selectedEmphasizedText : Palette.positive)
             }
             if deletions > 0 {
                 Text("-\(Self.abbreviate(deletions))")
+                    .contentTransition(.numericText(value: Double(deletions)))
                     .foregroundStyle(
                         isOnSelection
                             ? Palette.selectedEmphasizedText.opacity(0.75)
@@ -1188,6 +1195,11 @@ struct DiffStatLabel: View {
                     )
             }
         }
+        // The digits roll rather than jump when the six second refresh moves them, which is how
+        // a changing figure is drawn everywhere else on this Mac. Keyed on the two values, so the
+        // refreshes that change nothing, which are most of them, animate nothing.
+        .animation(reduceMotion ? nil : Motion.hover, value: additions)
+        .animation(reduceMotion ? nil : Motion.hover, value: deletions)
         // One rung, two designs: `compact` is the monospaced form used inside a chip, where the
         // digits have to line up with a filename set in the same face, not a smaller form. It was
         // written as a size step and never was one, because both styles resolved to 10.
