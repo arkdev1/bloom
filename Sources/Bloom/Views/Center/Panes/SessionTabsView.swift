@@ -22,6 +22,9 @@ struct SessionTabsView: View {
     /// The tab being carried, if any. Owned by the column, because the column draws where a tab
     /// taken out of the strip would land. See `TabCarry`.
     var carry: TabCarry
+    /// Which tabs carry the busy crest. The column's to resolve, because the column draws the other
+    /// half of the same answer along its top edge when this strip is not drawn.
+    var busy: BusyCrestPlacement<PaneContent>
     /// Which part of which pane a tab carried to a point in `CenterColumnView.space` would land in,
     /// or nil for anywhere that would not take it. The column's to answer, because the panes are
     /// the column's.
@@ -167,7 +170,7 @@ struct SessionTabsView: View {
             session: session,
             agentGlyph: sessionGlyph(for: session),
             isActive: selected == .chat(session.id),
-            isRunning: model.isRunning(session),
+            isRunning: busy.showsCrest(under: content),
             isRenaming: renamingID == session.id.rawValue,
             // Always. The workspace's last conversation IS closable, and hiding the cross was the
             // only thing pretending otherwise: "Close Session" in the File menu holds Cmd+W and has
@@ -215,10 +218,10 @@ struct SessionTabsView: View {
             title: tabs.displayTitle(of: tab, in: model),
             icon: icon(for: tab),
             isActive: selected == .tool(tab.id),
-            // A run script's tab wears the dot a working conversation does while its command is
+            // A run script's tab wears the crest a working conversation does while its command is
             // going. An ordinary terminal never does: nothing polls it, and a shell somebody ran
-            // `ls` in is not a thing anybody is waiting on.
-            isRunning: launcher.isRunning(tab),
+            // `ls` in is not a thing anybody is waiting on. See `WorkspaceTabsStore.busyCrest`.
+            isRunning: busy.showsCrest(under: content),
             surface: Self.pane.surface,
             isRenaming: renamingID == tab.id,
             // What is on the tab, not what the tab is filed under. A browser showing "Spatie"
@@ -277,8 +280,6 @@ struct SessionTabsView: View {
         guard let id = tab.runScriptID else { return nil }
         return model.settings.runScripts.first { $0.id == id }
     }
-
-    private var launcher: RunScriptLauncher { .shared }
 
     private func closeTitle(for tab: CenterTab) -> String {
         switch tab.kind {

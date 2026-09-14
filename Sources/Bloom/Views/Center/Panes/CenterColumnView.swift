@@ -32,23 +32,28 @@ struct CenterColumnView: View {
 
     /// Whether the strip is drawn, which is Safari's rule plus a split. The reasoning, and the
     /// exception for a single tab split into panes, is `TabStripVisibility`'s.
-    private var isStripShown: Bool {
-        let entries = store.entries(in: model)
-        let paneCount = store.selectedTab(in: model, entries: entries)
-            .map { store.layout(of: $0).paneCount } ?? 1
+    private func isStripShown(entries: [PaneContent], selected: PaneContent?) -> Bool {
+        let paneCount = selected.map { store.layout(of: $0).paneCount } ?? 1
         return TabStripVisibility.isShown(
             tabCount: entries.count, paneCount: paneCount, isRenaming: renamingID != nil
         )
     }
 
     var body: some View {
-        let isStripShown = self.isStripShown
+        let entries = store.entries(in: model)
+        let selected = store.selectedTab(in: model, entries: entries)
+        let isStripShown = isStripShown(entries: entries, selected: selected)
+        // One answer for the top edge and for every tab's slot. See `BusyCrestPlacement`.
+        let busy = store.busyCrest(
+            in: model, entries: entries, selected: selected, isStripShown: isStripShown
+        )
         VStack(spacing: 0) {
             if isStripShown {
                 SessionTabsView(
                     model: model,
                     renamingID: $renamingID,
                     carry: carry,
+                    busy: busy,
                     landing: { landing(for: $0, at: $1) },
                     drop: { place($0, at: $1) }
                 )
@@ -64,6 +69,20 @@ struct CenterColumnView: View {
                 }
         }
         .coordinateSpace(.named(Self.space))
+        // With no strip, the crest runs where the strip's bottom rule used to be: along the top of
+        // the column, full width, directly under the title bar. The same placement `AskView` has
+        // always used for a lone conversation.
+        //
+        // `.identity` so it leaves at once when the strip arrives. The column animates the strip
+        // in, and a default transition would fade this out over the same fifth of a second the
+        // tab's own crest fades in, which is both signals on screen at once.
+        .overlay(alignment: .top) {
+            if !isStripShown {
+                ActivityRule(isRunning: busy.showsColumnTop)
+                    .frame(height: BusyCrest.thickness)
+                    .transition(.identity)
+            }
+        }
         // Over the strip and the panes alike, and hit testing nothing, so the carried tab's wash
         // and ghost never take the release that lets it go.
         .overlay { TabCarryOverlay(carry: carry) }

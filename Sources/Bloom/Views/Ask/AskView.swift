@@ -10,8 +10,17 @@ struct AskView: View {
     private var lineHeight: ChatLineHeight { ColourThemePreference.shared.chatLineHeight }
 
     var body: some View {
+        let isStripShown = app.ask.sessions.count > 1
+        // The same split the centre column makes: a crest per busy tab with a strip, the top edge
+        // without one, never both. See `BusyCrestPlacement`.
+        let busy = BusyCrestPlacement.resolve(
+            isStripShown: isStripShown,
+            tabs: app.ask.sessions.map(\.id),
+            selected: app.ask.selectedID,
+            isRunning: app.ask.isRunning
+        )
         VStack(spacing: 0) {
-            if app.ask.sessions.count > 1 { AskTabStrip() }
+            if isStripShown { AskTabStrip(busy: busy) }
             if let trouble = app.ask.trouble {
                 EmptyStateView(
                     glyph: "exclamationmark.triangle",
@@ -31,8 +40,8 @@ struct AskView: View {
         }
         .background(Palette.windowBackground)
         .overlay(alignment: .top) {
-            if app.ask.sessions.count <= 1 {
-                ActivityRule().frame(height: BusyCrest.thickness)
+            if !isStripShown {
+                ActivityRule(isRunning: busy.showsColumnTop).frame(height: BusyCrest.thickness)
             }
         }
         .environment(\.fontScale, textSize.scale)

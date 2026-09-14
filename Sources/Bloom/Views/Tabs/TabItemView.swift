@@ -1,4 +1,5 @@
 import SwiftUI
+import BloomCore
 
 /// The chrome every tab in Bloom wears, whatever it holds and whichever strip it is in.
 ///
@@ -21,6 +22,12 @@ struct TabItemView: View {
     /// favicon and that is a picture rather than a glyph. See `TabItemIcon`.
     var icon: TabItemIcon?
     var isActive: Bool
+    /// Whether this tab carries the busy crest along the bottom of its slot.
+    ///
+    /// It used to swap the icon for a pulsing dot, and a strip of several tabs drew one full width
+    /// rule under all of them as well, so which tab was working was said twice and neither time
+    /// clearly. The crest in the slot is the one signal now and the icon stays put. The caller
+    /// asks `BusyCrestPlacement`, so the strip and the column's top edge never both light.
     var isRunning = false
     /// The ground of the pane this tab opens and the ink that reads on it, worn while the tab is
     /// the selected one. `TabPane.content.surface` for the centre column, `.sunken` for the bottom
@@ -99,19 +106,9 @@ struct TabItemView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            // Activity replaces the glyph in a fixed slot, so the title stays still as work starts.
-            if icon != nil || isRunning {
-                ZStack {
-                    if isRunning {
-                        ActivityDot(isActive: true)
-                            .accessibilityLabel("Running")
-                    } else if let icon {
-                        TabItemIconView(
-                            icon: icon, ink: isActive ? surface.ink : Palette.textPrimary
-                        )
-                    }
-                }
-                .frame(width: TabItemIconView.pageSize, height: TabItemIconView.pageSize)
+            if let icon {
+                TabItemIconView(icon: icon, ink: isActive ? surface.ink : Palette.textPrimary)
+                    .frame(width: TabItemIconView.pageSize, height: TabItemIconView.pageSize)
             }
 
             if isRenaming {
@@ -149,6 +146,16 @@ struct TabItemView: View {
             closeButton.padding(.leading, Metrics.spacingSmall * 1.5)
         }
         .frame(height: Metrics.barHeight)
+        // On the strip's bottom rule, inside this tab's own frame, so a carried tab takes its crest
+        // with it: `StripDragTracking` offsets and scales the whole item, this included. Inset by
+        // the hover capsule's own margin, so two busy neighbours show two crests with a gap
+        // between them rather than one line. The dividers are half the bar tall and centred, so
+        // they never reach down to it, and the capsules end above it.
+        .background(alignment: .bottom) {
+            ActivityRule(isRunning: isRunning, track: BusyCrest.tab)
+                .frame(height: BusyCrest.thickness)
+                .padding(.horizontal, Metrics.spacingSmall / 2)
+        }
         .contentShape(Rectangle())
         // A single click selects and a double click renames, which is one gesture with two
         // meanings rather than a button, so it cannot be expressed as one.
@@ -185,6 +192,9 @@ struct TabItemView: View {
         .help(title)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
+        // The dot used to carry "Running" as its label. The crest is decoration and hidden, so
+        // the tab says it itself.
+        .accessibilityValue(isRunning ? "Running" : "")
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
         // Unnamed, so this is the DEFAULT action. Selecting is a tap gesture rather than a button
         // here, and a named action only appears in VoiceOver's actions rotor: the row said it was

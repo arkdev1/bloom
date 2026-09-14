@@ -377,8 +377,8 @@ struct PaletteContrastTests {
         }
     }
 
-    /// Why the busy mark is not `accentFill`, which is the colour anybody asking for "the house
-    /// blue" means, and which this palette cannot spend here.
+    /// Why the busy DOT is not `accentFill`, which is the colour anybody asking for "the house
+    /// blue" means, and which this palette cannot spend on a dot.
     ///
     /// Written as a failing measurement rather than as a sentence, because "we tried the obvious
     /// thing and it did not work" is exactly the note that gets deleted by the next person who
@@ -389,7 +389,15 @@ struct PaletteContrastTests {
     /// the floor a mark holds without even being read. In light it is legible and still wrong: it
     /// is nearer `positive` than the app's own quiet ink is, which is the reported confusion with
     /// the green swapped for a blue.
-    @Test("the house blue is a fill, and cannot be the busy mark itself")
+    ///
+    /// **The crest is `accentFill` all the same, and that is not this argument lost.** The owner
+    /// chose the house blue for the crest when it moved off the strip's rule. Both objections
+    /// above are about a small mark read beside a status tick on a card: the crest is a line on
+    /// the strip and the column's top edge, which are not raised surfaces and carry no tick, and
+    /// `theCrestReadsOnItsGrounds` below is what it has to clear there instead. The sidebar's dot,
+    /// the transcript's "Working" dot and the to-do list still draw `running`, for the reasons
+    /// here.
+    @Test("the house blue is a fill, and cannot be the busy dot itself")
     func theHouseBlueCannotDoThisJob() {
         let fill = PaletteInk.accentFill.dark
         let raised = PaletteInk.surfaceRaised.dark
@@ -411,6 +419,51 @@ struct PaletteContrastTests {
         #expect(
             Contrast.deltaE(running, PaletteInk.accentFill.light) < quiet,
             "running sits \(Contrast.deltaE(running, PaletteInk.accentFill.light).rounded(to: 1)) from the house fill"
+        )
+    }
+
+    /// The crest in `accentFill`, on the two grounds it is drawn on: the tab strip (`sidebar`) and
+    /// the top of the centre column (`surface`), in both appearances.
+    ///
+    /// Three claims. The undiluted peak is a mark, so it holds the non-text floor. The lit track
+    /// has to stand clear of the hairline it replaces, or a working rule reads as an idle one,
+    /// which is the complaint `BusyCrest` was drawn to answer. And dark has to read at least as
+    /// strongly as light: `accentFill` is one value in both, so the track strength is what has to
+    /// differ, and at the light 0.42 the dark track measured 1.58 against a hairline at 1.50.
+    @Test("the crest's peak and track read on the strip and the column top in both appearances")
+    func theCrestReadsOnItsGrounds() {
+        let grounds: [(String, PaletteInk.Pair)] = [
+            ("sidebar", PaletteInk.sidebar), ("surface", PaletteInk.surface),
+        ]
+        var lightTrack = Double.infinity
+        var darkTrack = Double.infinity
+        for (appearance, isDark) in Self.appearances {
+            for (groundName, pair) in grounds {
+                let ground = pair.member(dark: isDark)
+                let peak = Contrast.ratio(PaletteInk.accentFill.member(dark: isDark), ground)
+                #expect(
+                    peak >= Contrast.nonTextFloor,
+                    "crest peak on \(groundName), \(appearance): \(peak.rounded(to: 2)) to 1"
+                )
+
+                let lit = Contrast.composited(
+                    PaletteInk.accentFill.member(dark: isDark), over: ground,
+                    at: BusyCrest.trackOpacity(dark: isDark)
+                )
+                let track = Contrast.ratio(lit, ground)
+                let hairline = Contrast.ratio(PaletteInk.border.member(dark: isDark), ground)
+                #expect(
+                    track > hairline + 0.25,
+                    "track on \(groundName), \(appearance): \(track.rounded(to: 2)) against the hairline's \(hairline.rounded(to: 2))"
+                )
+                #expect(peak > track + 1, "peak and track on \(groundName), \(appearance) are one strength")
+
+                if isDark { darkTrack = min(darkTrack, track) } else { lightTrack = min(lightTrack, track) }
+            }
+        }
+        #expect(
+            darkTrack >= lightTrack,
+            "dark track reads at \(darkTrack.rounded(to: 2)), light at \(lightTrack.rounded(to: 2))"
         )
     }
 

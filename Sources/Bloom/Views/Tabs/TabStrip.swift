@@ -147,11 +147,9 @@ struct TabStrip<Leading: View, Tabs: View, Append: View, Trailing: View>: View {
         .padding(.leading, Metrics.spacingWide)
         .frame(height: Metrics.barHeight)
         .background(Palette.sidebar)
-        // The busy signal belongs to the rule under the title bar and to nothing else. The centre
-        // column's strip is the only one drawn on that rule: the bottom panel's is a `.sunken`
-        // strip halfway down the window, and a second line brightening there would be a second
-        // heartbeat in a window that is meant to have one.
-        .tabStripMaterial(busy: pane == .content)
+        // No full width busy rule here any more: each busy tab carries its own crest in its slot,
+        // which `TabItemView` draws. See `BusyCrestPlacement`.
+        .tabStripMaterial()
     }
 }
 

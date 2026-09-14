@@ -150,8 +150,14 @@ struct RunningColourGallery: View {
                 .font(Typo.micro)
                 .foregroundStyle(Palette.textSecondary)
 
+            // A working tab carries a crest in its slot rather than a dot in its icon, so it is
+            // drawn that way here, beside a tab wearing a passing tick.
             HStack(spacing: 10) {
-                tab { ActivityDot(isActive: true) }
+                tab { Image(systemName: PaneGlyph.chat).font(Typo.caption) }
+                    .overlay(alignment: .bottom) {
+                        ActivityRuleFigure(variant: .crest, isMoving: false, track: BusyCrest.tab)
+                            .frame(height: BusyCrest.thickness)
+                    }
                 tab { WorkspaceStatusGlyph(status: .checksPassed) }
                 Spacer(minLength: 0)
             }
@@ -170,12 +176,12 @@ struct RunningColourGallery: View {
     /// The rule with the house fill directly under it, which is the case a blue rule has and an
     /// orange one did not.
     ///
-    /// A user's own message is drawn in `Palette.accentFill`, `#197593`, and the busy rule is now
-    /// a blue 12.9 from it. `ActivityRuleGallery` has carried this row since the rule was the
-    /// accent, on the argument that a mark in the accent an inch above a block of the accent is the
-    /// one place a lit line can be lit and still not be seen. That argument came back the moment
-    /// the mark went blue, so the row is here too rather than one page away: the claim is that
-    /// twelve degrees round the wheel and a step up in lightness are enough, and this is where it
+    /// A user's own message is drawn in `Palette.accentFill`, `#197593`, and the busy crest is now
+    /// that same blue: the owner chose the house blue for it when it moved off the strip's rule.
+    /// `ActivityRuleGallery` has carried this row since the rule was the accent, on the argument
+    /// that a mark in the accent an inch above a block of the accent is the one place a lit line
+    /// can be lit and still not be seen. The crest answers it by shape rather than hue now (three
+    /// points thick, directional, on chrome rather than on the transcript), and this is where that
     /// is either true or not.
     private var bubble: some View {
         HStack {

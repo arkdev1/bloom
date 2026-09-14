@@ -391,7 +391,8 @@ enum Palette {
     /// percent of value and invisible: it measured 4.39 to 1 on the sunken surface, and the sunken
     /// surface is where a strip sits.
     static let warning = dynamic(PaletteInk.warning)
-    /// An agent mid turn: the sidebar's dot, the tab's dot, and the rule under the tab strip.
+    /// An agent mid turn: the sidebar's dot and the transcript's "Working" dot. The busy crest on
+    /// a tab and along the column's top edge is `accentFill` instead; see `ActivityRule`.
     ///
     /// **A hue of its own, and it must never equal `positive`.** It was `accent`, which is what
     /// `positive` is too, and the report was that "a green busy indicator is easily being confused
@@ -427,10 +428,11 @@ enum Palette {
     /// all of it.
     static let running = dynamic(PaletteInk.running)
 
-    /// The same pair as an `NSColor`, for `ActivityRuleView`'s layers. See `accentNSColor`.
-    static let runningNSColor = dynamicNSColor(
-        light: PaletteInk.running.light, dark: PaletteInk.running.dark
-    )
+    /// The house blue as an `NSColor`, for `ActivityRuleView`'s layers. See `accentNSColor`.
+    ///
+    /// The crest was drawn in `running` until it moved off the strip's rule; the owner chose the
+    /// house blue for it then. `PaletteContrastTests.theCrestReadsOnItsGrounds` is what it clears.
+    static let accentFillNSColor = dynamicNSColor(PaletteInk.accentFill)
 
     /// A pull request that has landed.
     ///
@@ -977,14 +979,16 @@ enum Motion {
 /// Content strips stay opaque. The window title bar and navigation sidebar use their existing
 /// native materials, not per-view effect layers added to the scrolling surfaces here.
 extension View {
-    /// The tab strip's background and lower divider. The activity signal shares that divider
-    /// in the centre pane, below the inset tab capsules.
-    func tabStripMaterial(busy: Bool = false) -> some View {
+    /// The tab strip's background and lower divider.
+    ///
+    /// The busy crest used to light this divider full width. It is drawn per tab now, inside each
+    /// busy tab's own slot, because one line across every tab could not say which was working.
+    /// See `BusyCrestPlacement`.
+    func tabStripMaterial() -> some View {
         background {
             ZStack(alignment: .bottom) {
                 Palette.sidebar
                 Hairline()
-                if busy { ActivityRule() }
             }
         }
     }
