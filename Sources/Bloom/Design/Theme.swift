@@ -107,6 +107,21 @@ enum Palette {
     /// grey is the one thing in the window with no blue in it at all, so a resting selection read
     /// as a smudge. These are the same two steps, taken along Bloom's ramp instead.
     @MainActor static var selected: Color { themed(\.selected) }
+
+    /// A resting selection in the sidebar, which is the one list not standing on a white page.
+    ///
+    /// `selected` is opaque and chosen against the page (`#DCE7EA` in the default light theme). The
+    /// sidebar is glass over the window's blue wash, which composites to within a few units of
+    /// that same value, so the selected workspace had a fill nobody could see and Finder's plain
+    /// grey sidebar was easier to read than ours. Ink at an alpha darkens whatever is underneath
+    /// by the same step. Nine percent black, Finder's figure, read as a heavy grey slab over the
+    /// glass once it was in the window, so it is six, and nine in dark.
+    static let sidebarSelected = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(white: 1, alpha: 0.09)
+            : NSColor(white: 0, alpha: 0.06)
+    })
+
     /// Selection in a focused list inside the key window, where macOS uses the accent colour.
     /// Selection and control emphasis supplied by macOS.
     ///
@@ -1337,15 +1352,21 @@ extension View {
 extension View {
     /// A `Button` that reads as a link, in Bloom's teal rather than the system accent.
     ///
-    /// `.linkButton()` alone draws system blue: measured `#2B66D3` on this machine, and
+    /// `.buttonStyle(.link)` alone draws system blue: measured `#2B66D3` on this machine, and
     /// whatever the user picked in Appearance on anyone else's. Several of these sit in the
     /// transcript inches from prose links that `Palette.linkNSColor` already paints teal, so the
     /// same word rendered two colours depending on whether it was markdown or a control.
     ///
-    /// A modifier rather than a note in a review, because there are eleven call sites and the
-    /// twelfth is the one that would be missed.
-    func linkButton() -> some View {
-        buttonStyle(.link).tint(Palette.link)
+    /// `foregroundStyle`, not `tint`. This was `.tint(Palette.link)` and every link button still
+    /// drew system blue: the link style ignores a tint entirely. Rendered offscreen side by side,
+    /// a red tint and a `#197593` tint both came out the same blue as no tint at all, and only a
+    /// foreground style changed the ink. "Show output" shipped in 1.16.0 with the tint and was
+    /// reported blue in the window.
+    ///
+    /// A modifier rather than a note in a review, because there are a dozen call sites and the
+    /// next one is the one that would be missed.
+    func linkButton(_ ink: Color = Palette.link) -> some View {
+        buttonStyle(.link).foregroundStyle(ink)
     }
 }
 

@@ -663,7 +663,7 @@ struct SidebarView: View {
     /// Finder's sidebar, where the selected item sits on a quiet grey in its ordinary ink, and asked
     /// for the quieter one: the sidebar is glanced at all day while the work happens elsewhere,
     /// and a saturated bar there outshouts the conversation it only points at. So the selected row
-    /// always takes `Palette.selected`, active window or not.
+    /// always takes `Palette.sidebarSelected`, active window or not.
     ///
     /// Kept as the one answer the fill and the ink both read, for the reason it was written: the
     /// first version asked the two questions separately and painted Spatie Blue under a label
@@ -799,12 +799,13 @@ struct SidebarNavRow: View {
 
 /// What a selected row in the pane is painted with.
 ///
-/// Two fills, and the difference between them is whether this window is the one being used.
+/// Two fills, though `SidebarView.isEmphasized(_:)` only ever asks for the quiet one now.
 ///
-/// The two values are `Palette.selectedEmphasized` and `Palette.selected`, which is exactly the
-/// pair `RowBackground` uses. This view exists rather than a call to
-/// `rowBackground(isSelected:isHovered:isFocused:)` because a `listRowBackground` is handed a view
-/// to draw and not a modifier to apply to a row.
+/// The loud one is `Palette.selectedEmphasized`, as in `RowBackground`. The quiet one is
+/// `Palette.sidebarSelected` rather than `Palette.selected`, because this pane is glass and the
+/// opaque fill vanished into it; see that colour for the measurement. This view exists rather
+/// than a call to `rowBackground(isSelected:isHovered:isFocused:)` because a `listRowBackground`
+/// is handed a view to draw and not a modifier to apply to a row.
 struct SidebarSelectionFill: View {
     /// Whether this window is the one being used. See `SidebarView.selectionFill(for:)` for why
     /// this is passed in rather than read from the environment here.
@@ -812,7 +813,7 @@ struct SidebarSelectionFill: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: Metrics.corner, style: .continuous)
-            .fill(isEmphasized ? Palette.selectedEmphasized : Palette.selected)
+            .fill(isEmphasized ? Palette.selectedEmphasized : Palette.sidebarSelected)
             .padding(.horizontal, SidebarMetrics.selectionInset)
     }
 }
