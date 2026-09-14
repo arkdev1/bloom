@@ -346,6 +346,9 @@ struct ComposerFooterView: View {
                 .buttonStyle(.plain)
                 .help("Ask a side question (/btw)")
                 .accessibilityLabel("Ask a side question")
+                // The chat pane hangs the side conversation card off this frame. It is in all
+                // three variants of the row, and only the one `ViewThatFits` draws reports it.
+                .anchorPreference(key: SideConversationButtonAnchor.self, value: .bounds) { $0 }
             }
 
             // A paperclip, not the plus that used to sit here: a plus already means "new session"
