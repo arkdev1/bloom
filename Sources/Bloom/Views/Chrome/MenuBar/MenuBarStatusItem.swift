@@ -186,6 +186,8 @@ final class MenuBarStatusItem: NSObject, NSMenuDelegate {
             _ = model.options
             _ = model.iconStyle
             _ = model.showsUsage
+            _ = model.showsWaitingCount
+            _ = model.showsUnreadCount
             return UsageCatalogue.metrics(quotas: app.quotas, accounts: app.accounts)
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeUsage() }
@@ -207,7 +209,12 @@ final class MenuBarStatusItem: NSObject, NSMenuDelegate {
             button.image = Self.mark
         }
 
-        let segments = MenuBarSummary.segments(waiting: waitingCount, unread: unreadCount)
+        let segments = MenuBarSummary.segments(
+            waiting: waitingCount,
+            unread: unreadCount,
+            showsWaiting: model.showsWaitingCount,
+            showsUnread: model.showsUnreadCount
+        )
         let showsCup = keepsAwake && model.showsCup
         button.attributedTitle = Self.title(for: segments, keepsAwake: showsCup, font: button.font)
 
