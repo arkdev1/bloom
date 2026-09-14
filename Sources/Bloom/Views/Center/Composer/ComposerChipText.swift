@@ -143,7 +143,7 @@ enum ComposerChipText {
         for subject: InlineChip, font: NSFont, ground: AttachmentChipCell.Ground = .composer
     ) -> NSAttributedString {
         let attachment = InlineChipAttachment(subject: subject, font: font, ground: ground)
-        attachment.attachmentCell = AttachmentChipCell(subject: subject, font: font)
+        attachment.attachmentCell = AttachmentChipCell(subject: subject, font: font, ground: ground)
 
         let chip = NSMutableAttributedString(attachment: attachment)
         chip.addAttributes([.font: font], range: NSRange(location: 0, length: chip.length))
@@ -360,10 +360,39 @@ final class AttachmentChipCell: NSTextAttachmentCell {
         @MainActor static var composer: Ground {
             Ground(plate: NSColor(Palette.surfaceRaised), border: NSColor(Palette.border), ink: .labelColor)
         }
+
+        /// Inside a sent turn, on the accent fill `UserTurnRowView` draws.
+        ///
+        /// **The plate is DARKER than the bubble it sits in, where every other chip on this fill
+        /// is lighter, and it is darker because the lighter one cannot carry text.**
+        /// `AttachmentChip`, `Chip` and `DiffStatLabel` all sit on the accent fill as the inverted
+        /// ink at twenty percent, which over Spatie Blue composites to `#4791A9`: white on that is
+        /// 3.56 to 1, under the 4.5 floor for body text. Five percent passes at 4.76, but at 1.09
+        /// against the fill it is a pill nobody can see.
+        ///
+        /// So this one goes the other way. Spatie Blue at three quarters is `#13586E`, it carries
+        /// the same white ink the sentence around it is set in at 7.93 to 1, and it stands off the
+        /// fill at 1.51. It reads as a recess in the bubble rather than as a card lying on top of
+        /// it, which is what a path inside a sentence is.
+        ///
+        /// Plain `NSColor`s rather than dynamic ones, and one value rather than a pair, because an
+        /// `NSColor` in a text view resolves against the WINDOW's appearance while the bubble is dark
+        /// in both, and `Palette.accentFill` is one value in both appearances.
+        @MainActor static let userBubble = Ground(
+            plate: NSColor(rgb: 0x13586E),
+            // The plate's own edge, lifted off the plate rather than off the page: 2.34 against
+            // what it encloses and 1.55 against the bubble outside it. A hairline in
+            // `Palette.border` disappears into a fill this saturated.
+            border: NSColor(rgb: 0x6692A1),
+            ink: .white
+        )
     }
 
     let subject: InlineChip
-    private var ground: Ground { .composer }
+    /// Whether the chip is drawn on the user's bubble. A flag rather than the `Ground` itself, so a
+    /// composer chip still reads the theme's surfaces when it draws rather than when it was built.
+    private let isOnBubble: Bool
+    private var ground: Ground { isOnBubble ? .userBubble : .composer }
     /// The font of the line the chip sits on, which is what it is sized against. Not `font`: an
     /// `NSCell` already has one of those and it means something else.
     private let lineFont: NSFont
@@ -391,7 +420,7 @@ final class AttachmentChipCell: NSTextAttachmentCell {
     /// `Pasted 2026-08-20 at 22.29.20.png` to stay recognisable.
     private static let maxNameWidth: CGFloat = 170
 
-    init(subject: InlineChip, font: NSFont) {
+    init(subject: InlineChip, font: NSFont, ground: Ground = .composer) {
         let nameFont = ComposerInlineChipLayout.labelFont(for: font)
         let name = subject.label
         let iconSize = ComposerInlineChipLayout.iconSize(for: font)
@@ -406,6 +435,7 @@ final class AttachmentChipCell: NSTextAttachmentCell {
 
         self.subject = subject
         self.lineFont = font
+        self.isOnBubble = ground == .userBubble
         self.iconSize = iconSize
         self.nameWidth = nameWidth
         self.chipSize = NSSize(

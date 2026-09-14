@@ -108,6 +108,10 @@ struct TranscriptTextView: NSViewRepresentable {
     /// The ink a link is drawn in when the pointer is elsewhere. The underline is not part of it:
     /// see `LinkTextView.hovered`.
     var linkColor: NSColor
+    /// What paints behind a selection. Handed in because the user's bubble is a dark surface
+    /// whatever the page around it is doing, and AppKit cannot read the SwiftUI environment that
+    /// says so.
+    var selectionColor: NSColor = .selectedTextBackgroundColor
     var alignsBubbleInk = false
     var copyPrefix = ""
     var copySeparatorBefore = "\n\n"
@@ -202,7 +206,7 @@ struct TranscriptTextView: NSViewRepresentable {
             .foregroundColor: linkColor,
             .cursor: NSCursor.pointingHand,
         ]
-        view.selectedTextAttributes = [.backgroundColor: NSColor.selectedTextBackgroundColor]
+        view.selectedTextAttributes = [.backgroundColor: selectionColor]
     }
 
     /// How big this run is, at whatever width the layout system is asking about.

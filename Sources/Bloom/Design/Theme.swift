@@ -281,6 +281,16 @@ enum Palette {
     /// not on the page.
     static let linkInverted = Color(nsColor: NSColor(rgb: 0xCCF9F2))
 
+    /// Selected text inside that same filled bubble.
+    ///
+    /// `selectedTextBackgroundColor` cannot do this job for the reason written out on
+    /// `UserTurnRowView`: the bubble names `colorScheme` dark whatever the page is doing, AppKit
+    /// cannot read that, and the colour resolved on the light ramp is a pale blue that leaves white
+    /// text on it at 1.5 to 1, unreadable exactly while it is being dragged over. This is the value
+    /// the dark ramp resolves to, measured off a probe of the bubble: a muted slate that sits
+    /// clearly on Spatie Blue and carries the same white text at 6.2 to 1.
+    static let bubbleTextSelection = NSColor(rgb: 0x466288)
+
     /// Healthy, done, passed. The accent, not a green of its own.
     ///
     /// The ramp says so in as many words, and the reference render of this window agrees: its
