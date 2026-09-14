@@ -16,6 +16,17 @@ struct CenterColumnView: View {
     /// The tab whose name field is open in the strip. Here rather than in `SessionTabsView`
     /// because opening one is also a reason to draw the strip. See `TabStripVisibility`.
     @State private var renamingID: String?
+    /// A tab being carried out of the strip. Here because two regions draw one drag: the strip
+    /// slides its tabs, and the column washes the pane the tab would land in. See `TabCarry`.
+    @State private var carry = TabCarry()
+    /// Where the panes sit in `space`, read only when a carried tab asks which pane it is over.
+    /// A box for the reason `GeometryBox` gives: nothing draws it.
+    @State private var panesFrame = GeometryBox(CGRect.zero)
+
+    /// The space a carried tab's pointer is reported in and its landing is washed in. The column
+    /// rather than the window, because the strip, the panes and the overlay that washes them are
+    /// all inside it, so the three can share one set of numbers.
+    nonisolated static let space = "bloom.centreColumn"
 
     private var store: WorkspaceTabsStore { .shared }
 
@@ -34,7 +45,13 @@ struct CenterColumnView: View {
         let isStripShown = self.isStripShown
         VStack(spacing: 0) {
             if isStripShown {
-                SessionTabsView(model: model, renamingID: $renamingID)
+                SessionTabsView(
+                    model: model,
+                    renamingID: $renamingID,
+                    carry: carry,
+                    landing: { landing(for: $0, at: $1) },
+                    drop: { place($0, at: $1) }
+                )
                     // A fade rather than a slide. The strip sits hard under the title bar, and
                     // sliding it in from the top edge draws it over the title bar for the length
                     // of the animation; the panes below close or open the gap either way.
@@ -42,7 +59,14 @@ struct CenterColumnView: View {
             }
             WorkspaceSettingsNotices(model: model)
             CenterPanesView(model: model)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: {
+                    panesFrame.value = $0
+                }
         }
+        .coordinateSpace(.named(Self.space))
+        // Over the strip and the panes alike, and hit testing nothing, so the carried tab's wash
+        // and ghost never take the release that lets it go.
+        .overlay { TabCarryOverlay(carry: carry) }
         // On the column rather than on the strip, so the panes moving up into the space and the
         // strip fading out are one movement. Keyed on the answer alone: a tab being renamed or a
         // third tab arriving changes nothing here and must not animate the column. Only arriving
@@ -100,6 +124,45 @@ struct CenterColumnView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.refreshSettings()
         }
+    }
+
+    /// Which part of which pane a tab carried to `point` would land in, with the frame in `space`.
+    ///
+    /// The panes are laid out again from the selected tab's tree rather than each pane measuring
+    /// itself, which is the same `SplitGeometry` `CenterPanesView` positions them with and so the
+    /// same rectangles. That is what replaced a `.dropDestination` on every pane: a system drag no
+    /// longer exists to be dropped, and one hit test in the column cannot disagree with itself
+    /// about which pane is under the pointer. Nil over anywhere that would not take the tab, which
+    /// is `canAbsorb`'s refusal of a tab with a split arrangement of its own, so no wash promises a
+    /// drop that would be refused.
+    private func landing(for content: PaneContent, at point: CGPoint) -> PaneLanding? {
+        let frame = panesFrame.value
+        guard frame.contains(point), let tab = store.selectedTab(in: model),
+              store.canAbsorb(content) else { return nil }
+        let geometry = store.layout(of: tab).geometry(
+            in: frame.size, dividerThickness: CenterPanesView.dividerThickness
+        )
+        let local = CGPoint(x: point.x - frame.minX, y: point.y - frame.minY)
+        guard var landing = geometry.landing(at: local) else { return nil }
+        landing.frame = landing.frame.offsetBy(dx: frame.minX, dy: frame.minY)
+        return landing
+    }
+
+    /// A carried tab let go over a pane: the middle shows it there, an edge opens it beside that
+    /// pane on that side. The same two calls the pane's own drop made before the tab stopped being
+    /// a system drag.
+    private func place(_ content: PaneContent, at landing: PaneLanding) {
+        guard let tab = store.selectedTab(in: model), store.canAbsorb(content) else { return }
+        guard let placement = landing.region.placement else {
+            return store.replace(pane: landing.pane, of: tab, with: content, in: model)
+        }
+        // A split always opens the new pane after the old one, so landing on the leading side is
+        // the same split with the two contents the other way round. One call rather than a split
+        // followed by an overwrite, so a tool is never momentarily in two panes at once.
+        store.split(
+            tab: tab, pane: landing.pane,
+            axis: placement.axis, showing: content, before: placement.before
+        )
     }
 
     /// Opens the tab a workspace created with "Start with: Terminal" or "Start with: Browser" was

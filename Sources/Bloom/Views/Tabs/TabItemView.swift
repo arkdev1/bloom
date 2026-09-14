@@ -51,6 +51,11 @@ struct TabItemView: View {
     /// shown greyed, because a permanently disabled item is a worse answer than no item.
     var onSplitRight: (@MainActor () -> Void)?
     var onSplitDown: (@MainActor () -> Void)?
+    /// Moving the tab one place along the strip, which is what dragging it does for anyone who
+    /// cannot or would rather not drag. Offered as accessibility actions, and absent at the end of
+    /// the strip the tab cannot move past and in strips that cannot be reordered at all.
+    var onMoveLeft: (@MainActor () -> Void)?
+    var onMoveRight: (@MainActor () -> Void)?
     /// The strip's namespace, so the selected tab's fill is one view that moves rather than one
     /// that is destroyed here and built again over there. Without it the highlight blinks from
     /// tab to tab, and a highlight that blinks is the single clearest tell that a tab strip was
@@ -174,7 +179,11 @@ struct TabItemView: View {
         // here, and a named action only appears in VoiceOver's actions rotor: the row said it was
         // a button and then did nothing when a reader pressed it.
         .accessibilityAction { onSelect() }
-        .accessibilityActions { if canRename { Button("Rename", action: onStartRename) } }
+        .accessibilityActions {
+            if canRename { Button("Rename", action: onStartRename) }
+            if let onMoveLeft { Button("Move Left", action: onMoveLeft) }
+            if let onMoveRight { Button("Move Right", action: onMoveRight) }
+        }
         .contextMenu {
             if let onSplitRight, let onSplitDown {
                 Button("Open in Split Right", systemImage: PaneSymbol.splitRight, action: onSplitRight)

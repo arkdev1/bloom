@@ -27,6 +27,8 @@ struct SessionTabView: View {
     /// which drops the pair of items rather than showing them greyed.
     var onSplitRight: (@MainActor () -> Void)?
     var onSplitDown: (@MainActor () -> Void)?
+    var onMoveLeft: (@MainActor () -> Void)?
+    var onMoveRight: (@MainActor () -> Void)?
     var namespace: Namespace.ID
 
     var body: some View {
@@ -47,6 +49,8 @@ struct SessionTabView: View {
             onClose: onClose,
             onSplitRight: onSplitRight,
             onSplitDown: onSplitDown,
+            onMoveLeft: onMoveLeft,
+            onMoveRight: onMoveRight,
             namespace: namespace
         )
     }
