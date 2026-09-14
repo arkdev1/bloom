@@ -44,7 +44,6 @@ struct TurnFooterView: View {
 
     @State private var files: [TurnFile] = []
     @State private var snapshotFailure: String?
-    @State private var historicalFile: TurnFile?
 
     private var checkpoint: TurnCheckpoint? {
         transcript?.history.checkpoints.first { $0.endSeq == row.seq && $0.after != nil }
@@ -150,7 +149,6 @@ struct TurnFooterView: View {
                     Color.clear.frame(width: 0, height: 0)
                 }
 
-                if let transcript { TurnHistoryActions(transcript: transcript, endingAt: row.seq) }
                 CopyButton(text: answerText, title: "Copy this answer")
                     .disabled(answerText.isEmpty)
             }
@@ -224,11 +222,6 @@ struct TurnFooterView: View {
             }
         }
         .task(id: "\(row.seq):\(checkpoint?.after?.id.rawValue ?? "legacy")") { await scanFiles() }
-        .sheet(item: $historicalFile) { file in
-            if let transcript, let checkpoint {
-                TurnSnapshotView(transcript: transcript, checkpoint: checkpoint, initialPath: file.path)
-            }
-        }
     }
 
     private static func durationLabel(outcome: TurnEnding, milliseconds: Int) -> String {
@@ -325,14 +318,7 @@ struct TurnFooterView: View {
     private func fileChips(limit: Int) -> some View {
         HStack(spacing: TranscriptLayout.block) {
             ForEach(files.prefix(limit)) { file in
-                if checkpoint != nil {
-                    Button { historicalFile = file } label: {
-                        TurnFileChip(file: file, worktree: worktree, previewsCurrentFile: false)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    TurnFileChip(file: file, worktree: worktree)
-                }
+                TurnFileChip(file: file, worktree: worktree)
             }
             if files.count > limit {
                 Chip(text: "+\(files.count - limit) more")
