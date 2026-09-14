@@ -63,6 +63,8 @@ struct AppearanceSettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
             }
 
+            FileIconsSettingsSection()
+
             Section {
                 Picker("Font", selection: $colourTheme.chatFont) {
                     Section {
