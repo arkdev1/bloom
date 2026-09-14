@@ -14,6 +14,7 @@ struct BloomApp: App {
         if TranscriptSendProbe.isRequested { TranscriptSendProbe.runAndExit() }
         if TranscriptSelectionProbe.isRequested { TranscriptSelectionProbe.runAndExit() }
         if MarkdownTableProbe.isRequested { MarkdownTableProbe.runAndExit() }
+        if NumericTextProbe.isRequested { NumericTextProbe.runAndExit() }
         #endif
         if BrowserViewportDemo.isRequested { BrowserViewportDemo.schedule() }
         // First, before anything else in the process. Every `@AppStorage` binding in the app

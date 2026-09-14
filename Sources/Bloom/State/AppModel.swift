@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import SwiftUI
 import BloomCore
 
 struct BloomAlert: Identifiable {
@@ -639,7 +640,17 @@ final class AppModel {
             // `refreshDiffStats` has compared before assigning all along; this is the same rule in
             // the other place that publishes.
             if repos != loadedRepos { repos = loadedRepos }
-            if workspaces != reconciled { workspaces = reconciled }
+            if workspaces != reconciled {
+                // A diff stat moving and nothing else is the one reload the figures roll on, and
+                // the curve is on this write because a list row ignores any it starts itself. See
+                // `WorkspaceListReconciliation.changesOnlyDiffStats`.
+                if WorkspaceListReconciliation.changesOnlyDiffStats(from: workspaces, to: reconciled),
+                   !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                    withAnimation(Motion.hover) { workspaces = reconciled }
+                } else {
+                    workspaces = reconciled
+                }
+            }
             // The stood-in row goes exactly when the real one arrives, and here rather than at the
             // call site is what makes that true without anybody having to remember an order.
             // `WorkspaceStartRequest` carries the id, so the row the store just answered with IS
