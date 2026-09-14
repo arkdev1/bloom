@@ -258,9 +258,11 @@ struct TabStripOverflow: Equatable {
 /// two unselected tabs is exactly half the bar and two device pixels across. It used to be a
 /// hairline over a taller run, which read as a grid line.
 ///
-/// Softened, because the same measurement covers the contrast: Safari's rule is about six per cent
-/// darker than the strip it is on, and the separator colour at full strength was nearly twice that.
-/// A rule between two tabs is there to be found, not to be seen.
+/// Drawn in the tertiary ink at low strength rather than in the separator colour. The separator at
+/// 70 per cent was sampled off a two times capture of Bloom at 226 on a 234 strip, three per cent
+/// darker, and the owner's report was that the rule between two inactive tabs could not be seen at
+/// all beside Safari's. `Palette.border` is nearly the strip's own tint, so no strength of it
+/// reaches a rule you can find; a grey from the text ramp does, in both appearances.
 ///
 /// **No width in the layout.** The rule used to be a one point view between two tabs, and that
 /// point belonged to neither of them: a click on it selected nothing, and a hover highlight stopped
@@ -276,7 +278,7 @@ struct TabStripSeparator: View {
             .frame(width: 0, height: Metrics.barHeight / 2)
             .overlay {
                 Rectangle()
-                    .fill(Palette.border.opacity(0.7))
+                    .fill(Palette.textTertiary.opacity(0.35))
                     .frame(width: Metrics.hairline)
             }
             .opacity(isHidden ? 0 : 1)
