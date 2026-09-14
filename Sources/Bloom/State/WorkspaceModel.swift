@@ -1027,6 +1027,27 @@ final class WorkspaceModel {
         return SubagentPane.commandLine(inPayload: row.payload)
     }
 
+    /// A subagent rebuilt from the Agent call that started it, for the pane opened from the chat
+    /// once the roster has forgotten it. The call's input goes through `TranscriptEventCache`, so
+    /// a pane redrawn once a second parses it once. See `SubagentRunLink`.
+    func recordedSubagent(forToolUseID toolUseID: String) -> Subagent? {
+        guard !toolUseID.isEmpty, let transcript = activeTranscript,
+              let row = transcript.rows.last(where: { $0.kind == .toolUse && $0.refID == toolUseID })
+        else { return nil }
+        var input: JSONValue?
+        if case .toolUse(let use)? = TranscriptEventCache.event(rowID: row.id, payload: row.payload) {
+            input = use.input
+        }
+        return SubagentRunLink.recordedSubagent(
+            toolUseID: toolUseID,
+            input: input,
+            startedAt: row.createdAt,
+            isSettled: row.resultPayload != nil,
+            failed: row.isError || row.refusal != nil,
+            durationMS: row.durationMS
+        )
+    }
+
     /// Whether any session here has an agent stopped and waiting on a person.
     var isAwaitingPermission: Bool {
         AgentTurns.workspace(.awaitingPermission, sessions: sessions, live: liveTurns)

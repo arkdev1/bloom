@@ -482,6 +482,14 @@ public enum TranscriptFold {
             return !surfaced.contains(index)
         }
 
+        /// Whether any row at all is stored under this call, prose included, which is what the
+        /// call row needs to know to open the run once the roster has forgotten it. See
+        /// `SubagentRunLink`.
+        public func hasRun(underCall toolUseID: String?) -> Bool {
+            guard !subagents.isEmpty, let toolUseID else { return false }
+            return subagents[toolUseID] != nil
+        }
+
         /// How many actions the subagent this call started has taken, or nothing for a call that
         /// started no subagent or one that has not done anything yet.
         public func actions(underCall toolUseID: String?) -> Int? {

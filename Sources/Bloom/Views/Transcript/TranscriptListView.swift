@@ -477,6 +477,27 @@ struct TranscriptListView: View {
         var foldSeq: Int?
         var hiddenIndices: Set<Int> = []
 
+        // What an Agent call row opens. Built once for the pass, and nil where there is no
+        // workspace for a pane to hang off, which is Ask Bloom. See `SubagentRunActions`.
+        let runActions: SubagentRunActions? = home.workspaceID.map { workspaceID in
+            SubagentRunActions(
+                isLive: { [transcript] in transcript.subagents.subagent(forToolUseID: $0) != nil },
+                open: { [app, transcript] toolUseID, hasRecordedRows, isSettled in
+                    let target = SubagentRunLink.target(
+                        toolUseID: toolUseID,
+                        hasRecordedRows: hasRecordedRows,
+                        isSettled: isSettled,
+                        liveID: { transcript.subagents.subagent(forToolUseID: toolUseID)?.id }
+                    )
+                    switch target {
+                    case .live(let id): app.selection = .subagent(workspaceID, id)
+                    case .recorded(let id): app.selection = .subagentCall(workspaceID, toolUseID: id)
+                    case .unavailable: break
+                    }
+                }
+            )
+        }
+
         var out: [TranscriptTableEntry] = []
         // A workspace's setup script, its worktree events and its opening prompt. All three are
         // things a worktree has. Ask Bloom uses this opening entry only for the space below the
@@ -580,6 +601,9 @@ struct TranscriptListView: View {
             // How much work the subagent this call started has done. In the key below, so a child
             // landing redraws this row where it stands instead of putting a row in the list.
             let subagentActions = row.kind == .toolUse ? folds.actions(underCall: row.refID) : nil
+            // Whether anything is stored under it to open, prose included. In the key for the
+            // count's reason: the row becomes openable where it stands.
+            let subagentHasRun = row.kind == .toolUse && folds.hasRun(underCall: row.refID)
             let isExpanded = expanded.contains(row.seq)
             let wasStopped = row.seq == stoppedTurnSeq
             let recovered = recoveredRuns[row.seq]
@@ -606,6 +630,7 @@ struct TranscriptListView: View {
                 $0.combine(isExpanded)
                 $0.combine(row.parentToolUseID)
                 $0.combine(subagentActions)
+                $0.combine(subagentHasRun)
                 $0.combine(wasStopped)
                 $0.combine(recovered != nil)
                 $0.combine(closesTranscript)
@@ -664,6 +689,8 @@ struct TranscriptListView: View {
                                 isExpanded: isExpanded,
                                 isNested: row.parentToolUseID != nil,
                                 subagentActions: subagentActions,
+                                subagentHasRun: subagentHasRun,
+                                runActions: runActions,
                                 projectName: projectName,
                                 onToggle: { toggle(row.seq) },
                                 onAnswer: { requestID, decision in

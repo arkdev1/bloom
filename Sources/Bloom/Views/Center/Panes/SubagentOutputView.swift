@@ -38,7 +38,9 @@ import BloomCore
 /// `SubagentConversation`.
 struct SubagentOutputView: View {
     var model: WorkspaceModel
-    var subagentID: SubagentID
+    /// Which run: one the roster holds, opened from the sidebar or from a call row while it is
+    /// still held, or one read back from the rows stored under its call. See `SubagentRunLink`.
+    var target: SubagentRunLink.Target
 
     /// The conversation, already folded into rows. Rows rather than the messages they came from,
     /// because folding a result onto its call parses the largest payload in the file and this
@@ -70,8 +72,20 @@ struct SubagentOutputView: View {
     private var chatFontID: String { ColourThemePreference.shared.chatFont }
     private var lineHeight: ChatLineHeight { ColourThemePreference.shared.chatLineHeight }
 
+    /// The roster's account while it has one, and the call's own once it has not, which is the
+    /// case of a finished subagent opened from the chat after the next turn started or after a
+    /// relaunch.
     private var subagent: Subagent? {
-        model.activeTranscript?.subagents[subagentID]
+        let roster = model.activeTranscript?.subagents
+        switch target {
+        case .live(let id):
+            return roster?[id]
+        case .recorded(let toolUseID):
+            return roster?.subagent(forToolUseID: toolUseID)
+                ?? model.recordedSubagent(forToolUseID: toolUseID)
+        case .unavailable:
+            return nil
+        }
     }
 
     private var kind: SubagentKind { subagent?.kind ?? .agent }
@@ -101,7 +115,7 @@ struct SubagentOutputView: View {
                 } else {
                     // Only reachable if the turn was cleared out from under the selection, which
                     // the next turn starting does by design.
-                    Text("That subagent belonged to a turn that has since been replaced.")
+                    Text(missingSentence)
                         .font(Typo.body)
                         .foregroundStyle(Palette.textSecondary)
                         .subagentReadingColumn()
@@ -157,7 +171,7 @@ struct SubagentOutputView: View {
         }
         // A different subagent is a different conversation, opened at its end like the chat opens
         // one. Its opened rows and runs are its own, which the `id` on the conversation gives it.
-        .onChange(of: subagentID) { _, _ in
+        .onChange(of: target) { _, _ in
             isBriefExpanded = false
             followsEnd = true
             position.scrollTo(edge: .bottom)
@@ -166,7 +180,19 @@ struct SubagentOutputView: View {
         // running case keeps re-reading inside the task rather than re-keying it: an id that
         // carried the elapsed seconds would tear the whole pane down and rebuild it once a second,
         // losing the scroll position and any row the reader had just opened.
-        .task(id: "\(subagentID.rawValue):\(SubagentPane.refreshes(subagent))") { await follow() }
+        .task(id: "\(target):\(SubagentPane.refreshes(subagent))") { await follow() }
+    }
+
+    /// What the pane says when there is no subagent to describe at all.
+    private var missingSentence: String {
+        if case .recorded = target {
+            // The call is not in the conversation that is open now: a different chat became the
+            // active one after the row was clicked.
+            return "That agent's run is not in the chat that is open now."
+        }
+        // Only reachable if the turn was cleared out from under the selection, which the next
+        // turn starting does by design.
+        return "That subagent belonged to a turn that has since been replaced."
     }
 
     /// Read the file, and keep reading it for as long as the task is running.
@@ -184,7 +210,8 @@ struct SubagentOutputView: View {
     }
 
     private func load() async {
-        if let parsed = await model.activeTranscript?.codexSubagentTranscript(for: subagentID) {
+        if case .live(let id) = target,
+           let parsed = await model.activeTranscript?.codexSubagentTranscript(for: id) {
             guard !Task.isCancelled else { return }
             let updated = await Task.detached { SubagentReading(parsed) }.value
             guard !Task.isCancelled else { return }
@@ -290,7 +317,7 @@ struct SubagentOutputView: View {
             droppedRows: reading.droppedRows,
             isRunning: isRunning
         )
-        .id(subagentID)
+        .id(target)
 
         // A running subagent that has not spoken yet is covered by the working line above. Once
         // it has stopped, having nothing to read is worth a sentence.
