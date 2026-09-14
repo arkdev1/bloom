@@ -45,8 +45,10 @@ struct CenterColumnView: View {
         }
         // On the column rather than on the strip, so the panes moving up into the space and the
         // strip fading out are one movement. Keyed on the answer alone: a tab being renamed or a
-        // third tab arriving changes nothing here and must not animate the column.
-        .animation(reduceMotion ? nil : Motion.pane, value: isStripShown)
+        // third tab arriving changes nothing here and must not animate the column. Only arriving
+        // is animated: closing the second tab drops the strip at once, as Safari does, because
+        // a strip fading out with a single tab left in it lingers on something already gone.
+        .animation(reduceMotion || !isStripShown ? nil : Motion.pane, value: isStripShown)
         .background(Palette.windowBackground)
         // Rename Tab from the File menu. It renames the selected tab, which is the tab the menu
         // item was greyed against, and on a workspace with one tab that is a strip not drawn yet:
