@@ -15,6 +15,10 @@ public struct OpenTargets: OptionSet, Sendable, Hashable {
     public static let both: OpenTargets = [.file, .folder]
 }
 
+/// Stored as its raw bits, because a user-added application (see `OpenInCustomApps`) carries one
+/// of these to disk and back.
+extension OpenTargets: Codable {}
+
 /// One application Bloom knows how to hand a path to.
 ///
 /// Identified by bundle id rather than by path, because the path is the one thing about an
@@ -22,7 +26,7 @@ public struct OpenTargets: OptionSet, Sendable, Hashable {
 /// container, a homebrew cask can land in `~/Applications`, and plenty of people keep their
 /// editors somewhere else entirely. LaunchServices knows where all of them are, and answers by
 /// bundle id.
-public struct ExternalApp: Identifiable, Sendable, Hashable {
+public struct ExternalApp: Identifiable, Sendable, Hashable, Codable {
     public var id: String { bundleID }
     /// The identifier this application is filed under here, which is the one the menu's order and
     /// the "last opened in" memory are keyed by whichever copy is actually installed.
@@ -201,6 +205,7 @@ public enum EditorCatalog {
         ExternalApp(bundleID: "com.fournova.Tower3", name: "Tower", targets: .folder),
         ExternalApp(bundleID: "com.sublimemerge", name: "Sublime Merge", targets: .folder),
         ExternalApp(bundleID: "com.DanPristupov.Fork", name: "Fork", targets: .folder),
+        ExternalApp(bundleID: "com.axosoft.gitkraken", name: "GitKraken", targets: .folder),
     ]
 
     /// One JetBrains IDE, with the identifiers its other build channels ship under.
@@ -231,13 +236,16 @@ public enum EditorCatalog {
     /// entry, and only a rule that looks for an exact match across the whole catalogue first can
     /// say so. Asking each entry in turn whether it matches would hand it to whichever of the two
     /// is listed first.
-    public static func owner(ofBundleID bundleID: String) -> ExternalApp? {
-        if let exact = known.first(where: { app in
+    ///
+    /// - Parameter apps: the list to search, which is the built-in catalogue unless the caller
+    ///   has the user's own additions in hand as well. See `catalogue(adding:)`.
+    public static func owner(ofBundleID bundleID: String, in apps: [ExternalApp] = known) -> ExternalApp? {
+        if let exact = apps.first(where: { app in
             app.bundleIDs.contains { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
         }) {
             return exact
         }
-        return known.first { $0.matches(bundleID: bundleID) }
+        return apps.first { $0.matches(bundleID: bundleID) }
     }
 
     /// Whether this identifier is already one of ours.
@@ -246,7 +254,31 @@ public enum EditorCatalog {
     /// that the copy of PhpStorm the catalogue found and the copy the user set as the handler for
     /// `.php` do not both turn up as rows. `knownIDs` alone answered no for
     /// `com.jetbrains.PhpStormLight-EAP` and that is exactly the identifier the handler has.
-    public static func isKnown(bundleID: String) -> Bool { owner(ofBundleID: bundleID) != nil }
+    public static func isKnown(bundleID: String, in apps: [ExternalApp] = known) -> Bool {
+        owner(ofBundleID: bundleID, in: apps) != nil
+    }
+
+    /// The built-in catalogue with the user's own applications after it.
+    ///
+    /// This is the second place the user gets a say in what the menu contains, beside the system
+    /// default for a file type, and it exists because the first one cannot reach a folder. The
+    /// default handler for a folder is Finder on every Mac, so there was no way at all to put a
+    /// git client this file had not heard of into "Open Worktree in": the report was GitKraken,
+    /// which is in the list above now, but the next one will not be, and a settings pane is a
+    /// better answer than a pull request per application.
+    ///
+    /// An addition the catalogue already owns is dropped rather than shown twice, which is what
+    /// keeps a copy of Bloom that gains a built-in entry from drawing the same application under
+    /// two names. The catalogue's entry wins because it carries the variant identifiers and the
+    /// file name the user's cannot. Additions come after the built-ins and in the order they
+    /// were added, for the reason `ordered(_:lastUsed:)` gives: a list that can be learned.
+    public static func catalogue(adding custom: [ExternalApp]) -> [ExternalApp] {
+        var result = known
+        for app in custom where !isKnown(bundleID: app.bundleID, in: result) {
+            result.append(app)
+        }
+        return result
+    }
 
     /// The known applications that are installed, in the catalogue's own order.
     ///
