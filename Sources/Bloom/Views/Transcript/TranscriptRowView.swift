@@ -42,6 +42,7 @@ struct TranscriptRowView: View, Equatable {
             && lhs.row.parentToolUseID == rhs.row.parentToolUseID
             && lhs.isExpanded == rhs.isExpanded
             && lhs.isNested == rhs.isNested
+            && lhs.subagentActions == rhs.subagentActions
             && lhs.home == rhs.home
             // A question being answered has to redraw the row that asked it, and the decision is
             // the only thing about it that changes after it is stored.
@@ -57,6 +58,9 @@ struct TranscriptRowView: View, Equatable {
     var home: TranscriptHome
     var isExpanded = false
     var isNested = false
+    /// For a call that started a subagent, how many actions that subagent has taken, which the
+    /// chat draws on this row instead of drawing the actions. See `TranscriptFold`.
+    var subagentActions: Int?
     /// What the project is called, so a permission row can name where a rule would apply, or nil
     /// when there is no project behind this conversation. Handed down for the same reason `home`
     /// is: it is constant for a whole transcript.
@@ -158,6 +162,7 @@ struct TranscriptRowView: View, Equatable {
                         refusal: row.refusal,
                         refusalReason: row.refusalReason,
                         durationMS: row.durationMS,
+                        subagentActions: subagentActions,
                         isExpanded: isExpanded,
                         onToggle: onToggle
                     )

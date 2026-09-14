@@ -14,6 +14,11 @@ struct ToolRowHeader: View {
     /// The sentence the CLI gave for the refusal, in one line.
     var refusalReason: String = ""
     var durationMS: Int?
+    /// How many actions the subagent this call started has taken, drawn after the description as
+    /// "· 42 actions". The chat takes a subagent's rows out of the list and this is what stands
+    /// for them, so it is the one place the reader sees the work is happening. See
+    /// `TranscriptFold`.
+    var subagentActions: Int?
     var isExpanded: Bool
     var isHovered: Bool
     /// Whether there is anything behind the chevron. False for the rows that cannot open: a merge
@@ -176,6 +181,19 @@ struct ToolRowHeader: View {
                         isActive: wantsMeasuring,
                         into: $detailIsCut
                     )
+            }
+
+            // Fixed rather than truncating with the description: the description is the part a
+            // reader can do without at a narrow width, and the count is the part that moves.
+            if let subagentActions {
+                Text(showsDetail
+                     ? "· \(Counted.of(subagentActions, "action"))"
+                     : Counted.of(subagentActions, "action"))
+                    .font(Typo.label)
+                    .foregroundStyle(Palette.textTertiary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
             }
 
             // Deliberately not `fixedSize`: a row is one line tall and clips, so a chip that

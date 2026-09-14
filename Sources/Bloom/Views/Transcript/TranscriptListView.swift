@@ -571,7 +571,15 @@ struct TranscriptListView: View {
                    hiddenIndices.contains(index)
                     || TranscriptRowInk.drawsNothing(kind: row.kind, payload: row.payload) { continue }
             }
+            // A subagent's row, which the call that started it stands for. See "A subagent is one
+            // row" in `TranscriptFold`, which also says what stays.
+            if folds.absorbs(
+                index: index, seq: row.seq, parent: row.parentToolUseID, revealed: revealed
+            ) { continue }
             guard !TranscriptNoise.isHidden(row) else { continue }
+            // How much work the subagent this call started has done. In the key below, so a child
+            // landing redraws this row where it stands instead of putting a row in the list.
+            let subagentActions = row.kind == .toolUse ? folds.actions(underCall: row.refID) : nil
             let isExpanded = expanded.contains(row.seq)
             let wasStopped = row.seq == stoppedTurnSeq
             let recovered = recoveredRuns[row.seq]
@@ -597,6 +605,7 @@ struct TranscriptListView: View {
                 $0.combine(row.permissionNote)
                 $0.combine(isExpanded)
                 $0.combine(row.parentToolUseID)
+                $0.combine(subagentActions)
                 $0.combine(wasStopped)
                 $0.combine(recovered != nil)
                 $0.combine(closesTranscript)
@@ -654,6 +663,7 @@ struct TranscriptListView: View {
                                 home: home,
                                 isExpanded: isExpanded,
                                 isNested: row.parentToolUseID != nil,
+                                subagentActions: subagentActions,
                                 projectName: projectName,
                                 onToggle: { toggle(row.seq) },
                                 onAnswer: { requestID, decision in

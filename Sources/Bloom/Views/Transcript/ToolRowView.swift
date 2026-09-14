@@ -24,6 +24,8 @@ struct ToolRowView: View {
     /// What the CLI said about the refusal, in one line.
     var refusalReason: String = ""
     var durationMS: Int?
+    /// See `ToolRowHeader.subagentActions`.
+    var subagentActions: Int?
     var isExpanded: Bool
     var onToggle: () -> Void
 
@@ -39,6 +41,7 @@ struct ToolRowView: View {
                     refusal: refusal,
                     refusalReason: refusalReason,
                     durationMS: durationMS,
+                    subagentActions: subagentActions,
                     isExpanded: isExpanded,
                     isHovered: isHovered
                 )
