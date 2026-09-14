@@ -2,8 +2,8 @@ import SwiftUI
 import BloomCore
 
 struct AskTabStrip: View {
-    /// Which conversations carry the busy crest, resolved by `AskView` alongside its top edge.
-    var busy: BusyCrestPlacement<SessionID>
+    /// Which conversations' names shimmer, resolved by `AskView` alongside the window title.
+    var busy: BusySignalPlacement<SessionID>
 
     @Environment(AppModel.self) private var app
     @State private var renaming: SessionID?
@@ -22,7 +22,7 @@ struct AskTabStrip: View {
                     TabItemView(
                         title: app.ask.title(for: chat), icon: .symbol(PaneGlyph.chat),
                         isActive: app.ask.selectedID == chat.id,
-                        isRunning: busy.showsCrest(under: chat.id),
+                        isRunning: busy.showsInTab(chat.id),
                         isRenaming: renaming == chat.id,
                         editableTitle: app.ask.title(for: chat), canClose: true,
                         closeTitle: "Close conversation",

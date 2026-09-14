@@ -4,11 +4,15 @@ import BloomCore
 
 /// The window's one heartbeat, while an agent is working.
 ///
-/// Everything that moves while agents are running reads its phase from here: the crest along the
-/// centre column's top edge or under each busy tab (`ActivityRule`), the dot at the head of every
-/// working row in the sidebar (`WorkspaceRunningGlyph`), and the same dot beside "Working" in the
-/// transcript (`ActivityDot`). None of them
-/// starts an animation of its own, and that is the whole reason this type exists.
+/// Every layer mark that moves while agents are running reads its phase from here: the dot at the
+/// head of every working row in the sidebar (`WorkspaceRunningGlyph`), and the same dot beside
+/// "Working" in the transcript (`ActivityDot`). None of them starts an animation of its own, and
+/// that is the whole reason this type exists. The rule that closed off the tab strip read it too,
+/// and is only drawn in galleries now (`ActivityRuleFigure`).
+///
+/// A busy tab's name and the window title are not on this clock. They shimmer through a SwiftUI
+/// timeline at a period the owner chose, phased off absolute time so they keep step with each
+/// other; `BusyShimmer` says why that is not this.
 ///
 /// An animation begins when the view that carries it is committed. Five agents started at five
 /// different moments therefore give five row figures at five different phases, which is not a

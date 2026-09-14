@@ -136,76 +136,45 @@ struct RunningColourGallery: View {
         }
     }
 
-    // MARK: The other two places the window says it
+    // MARK: The other place the window says it
 
-    /// The tab's dot and the tab strip's rule, which are the other two marks the report named, with
-    /// a passing tick beside the dot so the pair can be judged rather than admired on its own, and
-    /// the fill the rule has to survive being drawn above.
+    /// A busy tab, beside a tab wearing a passing tick so the pair can be judged rather than
+    /// admired on its own.
+    ///
+    /// The report named a dot on the tab and a rule under the strip. Neither is drawn any more: a
+    /// busy tab's name shimmers (`BusyShimmer`), after a crest under the tab was reported as sitting
+    /// underneath it rather than being part of it. So the row is the name, twice: one frame of the
+    /// band a third of the way through, and the still tint Reduce Motion draws instead.
     private var elsewhere: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("On a tab, on the rule under the strip, and above a user's own message")
+            Text("On a busy tab's name")
                 .font(Typo.label)
                 .foregroundStyle(Palette.textSecondary)
-            Text("Held still: what Reduce Motion draws, and the only figure a render can photograph.")
+            Text("Held still: one frame of the band, then what Reduce Motion draws.")
                 .font(Typo.micro)
                 .foregroundStyle(Palette.textSecondary)
 
-            // A working tab carries a crest in its slot rather than a dot in its icon, so it is
-            // drawn that way here, beside a tab wearing a passing tick.
             HStack(spacing: 10) {
-                tab { Image(systemName: PaneGlyph.chat).font(Typo.caption) }
-                    .overlay(alignment: .bottom) {
-                        ActivityRuleFigure(variant: .crest, isMoving: false, track: BusyCrest.tab)
-                            .frame(height: BusyCrest.thickness)
-                    }
+                tab(ink: AnyShapeStyle(BusyShimmerStyle.band(
+                    ink: Palette.textPrimary, phase: 0.45, strength: 1
+                ))) { Image(systemName: PaneGlyph.chat).font(Typo.caption) }
+                tab(ink: AnyShapeStyle(BusyShimmerStyle.still(ink: Palette.textPrimary))) {
+                    Image(systemName: PaneGlyph.chat).font(Typo.caption)
+                }
                 tab { WorkspaceStatusGlyph(status: .checksPassed) }
                 Spacer(minLength: 0)
             }
-
-            ZStack(alignment: .bottom) {
-                Palette.sidebar
-                Hairline()
-                ActivityRuleFigure(variant: .crest, isMoving: false)
-            }
-            .frame(width: Self.ruleWidth, height: 26)
-
-            bubble
         }
     }
 
-    /// The rule with the house fill directly under it, which is the case a blue rule has and an
-    /// orange one did not.
-    ///
-    /// A user's own message is drawn in `Palette.accentFill`, `#197593`, and the busy crest is now
-    /// that same blue: the owner chose the house blue for it when it moved off the strip's rule.
-    /// `ActivityRuleGallery` has carried this row since the rule was the accent, on the argument
-    /// that a mark in the accent an inch above a block of the accent is the one place a lit line
-    /// can be lit and still not be seen. The crest answers it by shape rather than hue now (three
-    /// points thick, directional, on chrome rather than on the transcript), and this is where that
-    /// is either true or not.
-    private var bubble: some View {
-        HStack {
-            Spacer(minLength: 0)
-            Text("Have another look at the transcript stutter")
-                .font(Typo.body)
-                .foregroundStyle(Palette.textInverted)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Palette.accentFill, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .frame(width: Self.ruleWidth)
-    }
-
-    /// The centre column at a window somebody would work in, which is the width the rule was tuned
-    /// at. `ActivityRuleGallery` uses the same number and for the same reason.
-    private static let ruleWidth: CGFloat = 760
-
-    private func tab<Content: View>(@ViewBuilder mark: () -> Content) -> some View {
+    private func tab<Content: View>(
+        ink: AnyShapeStyle = AnyShapeStyle(Palette.textPrimary), @ViewBuilder mark: () -> Content
+    ) -> some View {
         HStack(spacing: Metrics.spacingSmall) {
             mark()
             Text("Chat")
                 .font(Typo.label)
-                .foregroundStyle(Palette.textPrimary)
+                .foregroundStyle(ink)
         }
         .padding(.horizontal, 10)
         .frame(height: 26)

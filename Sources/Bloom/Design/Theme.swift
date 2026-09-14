@@ -391,8 +391,8 @@ enum Palette {
     /// percent of value and invisible: it measured 4.39 to 1 on the sunken surface, and the sunken
     /// surface is where a strip sits.
     static let warning = dynamic(PaletteInk.warning)
-    /// An agent mid turn: the sidebar's dot and the transcript's "Working" dot. The busy crest on
-    /// a tab and along the column's top edge is `accentFill` instead; see `ActivityRule`.
+    /// An agent mid turn: the sidebar's dot and the transcript's "Working" dot. A busy tab's name
+    /// and the window title shimmer in `busyShimmer` instead.
     ///
     /// **A hue of its own, and it must never equal `positive`.** It was `accent`, which is what
     /// `positive` is too, and the report was that "a green busy indicator is easily being confused
@@ -428,11 +428,24 @@ enum Palette {
     /// all of it.
     static let running = dynamic(PaletteInk.running)
 
-    /// The house blue as an `NSColor`, for `ActivityRuleView`'s layers. See `accentNSColor`.
+    /// The same pair as an `NSColor`, for `ActivityRuleView`'s layers. See `accentNSColor`.
+    static let runningNSColor = dynamicNSColor(
+        light: PaletteInk.running.light, dark: PaletteInk.running.dark
+    )
+
+    /// The light that passes through a busy name, a tab's or the window title's. See `BusyShimmer`.
     ///
-    /// The crest was drawn in `running` until it moved off the strip's rule; the owner chose the
-    /// house blue for it then. `PaletteContrastTests.theCrestReadsOnItsGrounds` is what it clears.
-    static let accentFillNSColor = dynamicNSColor(PaletteInk.accentFill)
+    /// A lighter house blue, which is what the owner chose off a mockup, and **not the mockup's light
+    /// member**. `#7FC3DA` measured 1.78 to 1 on the strip's track, so at the band's peak the glyphs
+    /// under it all but went. `#2F8AA8` is `accentFill` lifted about a tenth towards white, the
+    /// lightest step up that ramp that still holds the non-text floor on the worst ground a name
+    /// sits on, the strip under the pointer's hover wash (3.29; 3.60 on the bare strip, 3.95 on the
+    /// selected capsule). Dark keeps the mockup's `#6CC6E6`, 7.1 to 9.1 on those grounds.
+    ///
+    /// Not `running`, which is the sidebar's dot and a different blue on purpose, and not
+    /// `accentFill` itself, which is a fill and too dark to read as light in either appearance.
+    /// `PaletteContrastTests.theShimmerReads` holds all of it.
+    static let busyShimmer = dynamic(PaletteInk.busyShimmer)
 
     /// A pull request that has landed.
     ///
@@ -981,9 +994,9 @@ enum Motion {
 extension View {
     /// The tab strip's background and lower divider.
     ///
-    /// The busy crest used to light this divider full width. It is drawn per tab now, inside each
-    /// busy tab's own slot, because one line across every tab could not say which was working.
-    /// See `BusyCrestPlacement`.
+    /// The busy signal used to light this divider. It is a shimmer through each busy tab's name
+    /// now, because one line across every tab could not say which was working. See
+    /// `BusySignalPlacement`.
     func tabStripMaterial() -> some View {
         background {
             ZStack(alignment: .bottom) {

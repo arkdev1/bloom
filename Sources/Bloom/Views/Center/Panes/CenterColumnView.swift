@@ -43,8 +43,8 @@ struct CenterColumnView: View {
         let entries = store.entries(in: model)
         let selected = store.selectedTab(in: model, entries: entries)
         let isStripShown = isStripShown(entries: entries, selected: selected)
-        // One answer for the top edge and for every tab's slot. See `BusyCrestPlacement`.
-        let busy = store.busyCrest(
+        // One answer for the window title and for every tab's name. See `BusySignalPlacement`.
+        let busy = store.busySignal(
             in: model, entries: entries, selected: selected, isStripShown: isStripShown
         )
         VStack(spacing: 0) {
@@ -69,20 +69,15 @@ struct CenterColumnView: View {
                 }
         }
         .coordinateSpace(.named(Self.space))
-        // With no strip, the crest runs where the strip's bottom rule used to be: along the top of
-        // the column, full width, directly under the title bar. The same placement `AskView` has
-        // always used for a lone conversation.
-        //
-        // `.identity` so it leaves at once when the strip arrives. The column animates the strip
-        // in, and a default transition would fade this out over the same fifth of a second the
-        // tab's own crest fades in, which is both signals on screen at once.
-        .overlay(alignment: .top) {
-            if !isStripShown {
-                ActivityRule(isRunning: busy.showsColumnTop)
-                    .frame(height: BusyCrest.thickness)
-                    .transition(.identity)
-            }
+        // With no strip, the window title shimmers for the one tab there is. The title is a
+        // toolbar item and cannot see this column's strip, so the answer is published for it,
+        // under this workspace's selection. Keyed on the id, so moving to another workspace clears
+        // this one's claim before the next is made.
+        .onChange(of: busy.showsInWindowTitle ? model.workspace.id : nil, initial: true) { was, now in
+            if let was { WindowTitleText.shared.setBusy(false, for: .workspace(was)) }
+            if let now { WindowTitleText.shared.setBusy(true, for: .workspace(now)) }
         }
+        .onDisappear { WindowTitleText.shared.setBusy(false, for: .workspace(model.workspace.id)) }
         // Over the strip and the panes alike, and hit testing nothing, so the carried tab's wash
         // and ghost never take the release that lets it go.
         .overlay { TabCarryOverlay(carry: carry) }

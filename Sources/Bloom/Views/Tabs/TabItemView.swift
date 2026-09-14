@@ -22,12 +22,14 @@ struct TabItemView: View {
     /// favicon and that is a picture rather than a glyph. See `TabItemIcon`.
     var icon: TabItemIcon?
     var isActive: Bool
-    /// Whether this tab carries the busy crest along the bottom of its slot.
+    /// Whether this tab's name shimmers.
     ///
     /// It used to swap the icon for a pulsing dot, and a strip of several tabs drew one full width
     /// rule under all of them as well, so which tab was working was said twice and neither time
-    /// clearly. The crest in the slot is the one signal now and the icon stays put. The caller
-    /// asks `BusyCrestPlacement`, so the strip and the column's top edge never both light.
+    /// clearly. Then it was a crest under the tab, which the owner reported sat underneath the tab
+    /// rather than being part of it. The name itself is the signal now, and nothing is drawn under,
+    /// around or behind the tab; the icon stays put. The caller asks `BusySignalPlacement`, so a
+    /// tab's name and the window title never both shimmer.
     var isRunning = false
     /// The ground of the pane this tab opens and the ink that reads on it, worn while the tab is
     /// the selected one. `TabPane.content.surface` for the centre column, `.sunken` for the bottom
@@ -123,9 +125,12 @@ struct TabItemView: View {
                     .onSubmit { onCommitRename(renameText) }
                     .onExitCommand(perform: onCancelRename)
             } else {
+                // The shimmer owns the ink, so it is handed the tab's rather than set here. Only
+                // the label: the rename field above is plain, and the band is clipped to the
+                // glyphs `lineLimit` leaves, ellipsis included.
                 Text(title)
-                    .foregroundStyle(isActive ? surface.ink : Palette.textPrimary)
                     .lineLimit(1)
+                    .busyShimmer(isRunning, ink: isActive ? surface.ink : Palette.textPrimary)
             }
         }
         .font(Typo.caption)
@@ -146,16 +151,6 @@ struct TabItemView: View {
             closeButton.padding(.leading, Metrics.spacingSmall * 1.5)
         }
         .frame(height: Metrics.barHeight)
-        // On the strip's bottom rule, inside this tab's own frame, so a carried tab takes its crest
-        // with it: `StripDragTracking` offsets and scales the whole item, this included. Inset by
-        // the hover capsule's own margin, so two busy neighbours show two crests with a gap
-        // between them rather than one line. The dividers are half the bar tall and centred, so
-        // they never reach down to it, and the capsules end above it.
-        .background(alignment: .bottom) {
-            ActivityRule(isRunning: isRunning, track: BusyCrest.tab)
-                .frame(height: BusyCrest.thickness)
-                .padding(.horizontal, Metrics.spacingSmall / 2)
-        }
         .contentShape(Rectangle())
         // A single click selects and a double click renames, which is one gesture with two
         // meanings rather than a button, so it cannot be expressed as one.
@@ -192,8 +187,8 @@ struct TabItemView: View {
         .help(title)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
-        // The dot used to carry "Running" as its label. The crest is decoration and hidden, so
-        // the tab says it itself.
+        // The dot used to carry "Running" as its label. A shimmer is ink and says nothing to
+        // VoiceOver, so the tab says it itself.
         .accessibilityValue(isRunning ? "Running" : "")
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
         // Unnamed, so this is the DEFAULT action. Selecting is a tap gesture rather than a button

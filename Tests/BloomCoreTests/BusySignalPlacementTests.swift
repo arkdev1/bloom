@@ -1,28 +1,30 @@
 import Testing
 @testable import BloomCore
 
-/// The busy crest used to run along the strip's rule and vanished with the strip. These are the
-/// two places it went instead, and the rule that it is only ever in one of them.
-@Suite("Where the busy crest is drawn")
-struct BusyCrestPlacementTests {
-    private typealias Placement = BusyCrestPlacement<String>
+/// The busy signal used to run along the strip's rule and vanished with the strip. These are the
+/// two places it went instead, the title and the tabs' names, and the rule that it is only ever in
+/// one of them.
+@Suite("Where the busy signal is drawn")
+struct BusySignalPlacementTests {
+    private typealias Placement = BusySignalPlacement<String>
 
-    @Test("a lone tab with an agent running lights the column's top edge")
+    @Test("a lone tab with an agent running shimmers the window title")
     func loneBusyTab() {
         let placement = Placement.resolve(
             isStripShown: false, tabs: ["chat"], selected: "chat", isRunning: { $0 == "chat" }
         )
-        #expect(placement == .columnTop)
-        #expect(placement.showsColumnTop)
-        #expect(!placement.showsCrest(under: "chat"))
+        #expect(placement == .windowTitle)
+        #expect(placement.showsInWindowTitle)
+        #expect(!placement.showsInTab("chat"))
     }
 
-    @Test("a lone idle tab lights nothing")
+    @Test("a lone idle tab shows nothing")
     func loneIdleTab() {
         let placement = Placement.resolve(
             isStripShown: false, tabs: ["chat"], selected: "chat", isRunning: { _ in false }
         )
         #expect(placement == .none)
+        #expect(!placement.showsInWindowTitle)
     }
 
     /// The column shows one tab, so a turn running in a pane of that tab is running in what is on
@@ -34,7 +36,7 @@ struct BusyCrestPlacementTests {
             panes: { $0 == "chat" ? ["chat", "second"] : [$0] },
             isRunning: { $0 == "second" }
         )
-        #expect(placement == .columnTop)
+        #expect(placement == .windowTitle)
     }
 
     @Test("a selection that has not resolved falls back to the only tab")
@@ -42,7 +44,7 @@ struct BusyCrestPlacementTests {
         let placement = Placement.resolve(
             isStripShown: false, tabs: ["chat"], selected: nil, isRunning: { _ in true }
         )
-        #expect(placement == .columnTop)
+        #expect(placement == .windowTitle)
         #expect(Placement.resolve(
             isStripShown: false, tabs: ["a", "b"], selected: nil, isRunning: { _ in true }
         ) == .none)
@@ -51,18 +53,19 @@ struct BusyCrestPlacementTests {
         ) == .none)
     }
 
-    /// The whole reason for moving it: two busy tabs show two crests, and an idle tab shows none.
-    @Test("with a strip, each busy tab gets its own crest and the top edge stays dark")
+    /// The whole reason for a per tab answer: two busy tabs shimmer, an idle tab does not, and the
+    /// title stays still because the names already say it.
+    @Test("with a strip, each busy tab's name shimmers and the title stays still")
     func perTab() {
         let placement = Placement.resolve(
             isStripShown: true, tabs: ["a", "b", "c"], selected: "b",
             isRunning: { $0 != "b" }
         )
         #expect(placement == .tabs(["a", "c"]))
-        #expect(!placement.showsColumnTop)
-        #expect(placement.showsCrest(under: "a"))
-        #expect(!placement.showsCrest(under: "b"))
-        #expect(placement.showsCrest(under: "c"))
+        #expect(!placement.showsInWindowTitle)
+        #expect(placement.showsInTab("a"))
+        #expect(!placement.showsInTab("b"))
+        #expect(placement.showsInTab("c"))
     }
 
     @Test("a split tab in the strip is busy when any of its panes is")
@@ -83,14 +86,14 @@ struct BusyCrestPlacementTests {
         #expect(placement == .none)
     }
 
-    /// A rename keeps the strip up on a single tab. The crest follows the strip rather than the
-    /// tab count, so it moves under the tab while the field is open and never shows twice.
+    /// A rename keeps the strip up on a single tab. The signal follows the strip rather than the
+    /// tab count, so it moves into the tab while the field is open and never shows twice.
     @Test("the strip decides, not the tab count")
     func followsTheStrip() {
         let shown = Placement.resolve(
             isStripShown: true, tabs: ["chat"], selected: "chat", isRunning: { _ in true }
         )
         #expect(shown == .tabs(["chat"]))
-        #expect(!shown.showsColumnTop)
+        #expect(!shown.showsInWindowTitle)
     }
 }

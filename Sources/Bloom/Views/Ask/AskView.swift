@@ -11,9 +11,9 @@ struct AskView: View {
 
     var body: some View {
         let isStripShown = app.ask.sessions.count > 1
-        // The same split the centre column makes: a crest per busy tab with a strip, the top edge
-        // without one, never both. See `BusyCrestPlacement`.
-        let busy = BusyCrestPlacement.resolve(
+        // The same split the centre column makes: each busy tab's name with a strip, the window
+        // title without one, never both. See `BusySignalPlacement`.
+        let busy = BusySignalPlacement.resolve(
             isStripShown: isStripShown,
             tabs: app.ask.sessions.map(\.id),
             selected: app.ask.selectedID,
@@ -39,11 +39,12 @@ struct AskView: View {
             }
         }
         .background(Palette.windowBackground)
-        .overlay(alignment: .top) {
-            if !isStripShown {
-                ActivityRule(isRunning: busy.showsColumnTop).frame(height: BusyCrest.thickness)
-            }
+        // A lone conversation has no tab to shimmer, and the title bar says "Ask Bloom", so that
+        // is what shimmers, the way a workspace's title does. See `WindowTitleText.busySelection`.
+        .onChange(of: busy.showsInWindowTitle, initial: true) { _, shows in
+            WindowTitleText.shared.setBusy(shows, for: .ask)
         }
+        .onDisappear { WindowTitleText.shared.setBusy(false, for: .ask) }
         .environment(\.fontScale, textSize.scale)
         .environment(\.chatFont, ChatFont(rawValue: chatFontID))
         .environment(\.chatLineHeight, lineHeight)

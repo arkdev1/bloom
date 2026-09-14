@@ -147,8 +147,8 @@ struct TabStrip<Leading: View, Tabs: View, Append: View, Trailing: View>: View {
         .padding(.leading, Metrics.spacingWide)
         .frame(height: Metrics.barHeight)
         .background(Palette.sidebar)
-        // No full width busy rule here any more: each busy tab carries its own crest in its slot,
-        // which `TabItemView` draws. See `BusyCrestPlacement`.
+        // No full width busy rule here any more: each busy tab's name shimmers instead, which
+        // `TabItemView` draws. See `BusySignalPlacement`.
         .tabStripMaterial()
     }
 }

@@ -377,8 +377,8 @@ struct PaletteContrastTests {
         }
     }
 
-    /// Why the busy DOT is not `accentFill`, which is the colour anybody asking for "the house
-    /// blue" means, and which this palette cannot spend on a dot.
+    /// Why the busy mark is not `accentFill`, which is the colour anybody asking for "the house
+    /// blue" means, and which this palette cannot spend here.
     ///
     /// Written as a failing measurement rather than as a sentence, because "we tried the obvious
     /// thing and it did not work" is exactly the note that gets deleted by the next person who
@@ -389,15 +389,7 @@ struct PaletteContrastTests {
     /// the floor a mark holds without even being read. In light it is legible and still wrong: it
     /// is nearer `positive` than the app's own quiet ink is, which is the reported confusion with
     /// the green swapped for a blue.
-    ///
-    /// **The crest is `accentFill` all the same, and that is not this argument lost.** The owner
-    /// chose the house blue for the crest when it moved off the strip's rule. Both objections
-    /// above are about a small mark read beside a status tick on a card: the crest is a line on
-    /// the strip and the column's top edge, which are not raised surfaces and carry no tick, and
-    /// `theCrestReadsOnItsGrounds` below is what it has to clear there instead. The sidebar's dot,
-    /// the transcript's "Working" dot and the to-do list still draw `running`, for the reasons
-    /// here.
-    @Test("the house blue is a fill, and cannot be the busy dot itself")
+    @Test("the house blue is a fill, and cannot be the busy mark itself")
     func theHouseBlueCannotDoThisJob() {
         let fill = PaletteInk.accentFill.dark
         let raised = PaletteInk.surfaceRaised.dark
@@ -422,49 +414,59 @@ struct PaletteContrastTests {
         )
     }
 
-    /// The crest in `accentFill`, on the two grounds it is drawn on: the tab strip (`sidebar`) and
-    /// the top of the centre column (`surface`), in both appearances.
+    /// The band of light a busy name shimmers with, on every ground a name is drawn on.
     ///
-    /// Three claims. The undiluted peak is a mark, so it holds the non-text floor. The lit track
-    /// has to stand clear of the hairline it replaces, or a working rule reads as an idle one,
-    /// which is the complaint `BusyCrest` was drawn to answer. And dark has to read at least as
-    /// strongly as light: `accentFill` is one value in both, so the track strength is what has to
-    /// differ, and at the light 0.42 the dark track measured 1.58 against a hairline at 1.50.
-    @Test("the crest's peak and track read on the strip and the column top in both appearances")
-    func theCrestReadsOnItsGrounds() {
-        let grounds: [(String, PaletteInk.Pair)] = [
-            ("sidebar", PaletteInk.sidebar), ("surface", PaletteInk.surface),
-        ]
-        var lightTrack = Double.infinity
-        var darkTrack = Double.infinity
+    /// Four claims. The peak holds the non-text floor, not the text one: it covers a few glyphs for
+    /// a fraction of a second and the name either side is in its own ink, but a peak that washes
+    /// the glyphs out is what the mockup's `#7FC3DA` did, at 1.78 on the strip. It is lighter than
+    /// the house fill it is derived from. It is visibly a different colour from the ink it passes
+    /// through, or nothing is seen to pass. And Reduce Motion's still tint, which is read rather
+    /// than glimpsed, holds the text floor and is still a lean a glance can see.
+    ///
+    /// The grounds are the selected capsule (`surface`), the strip (`sidebar`), and the strip under
+    /// the pointer, which is `Palette.hoverNSColor` over it: black at 4 per cent in light, white at
+    /// 5.5 in dark. The title bar is the strip's colour under the toolbar. The ink is `labelColor`,
+    /// black at 85 per cent in light and white at 85 in dark, composited over each ground.
+    @Test("the busy shimmer's light reads on every ground a name is drawn on, and its still tint is text")
+    func theShimmerReads() {
         for (appearance, isDark) in Self.appearances {
-            for (groundName, pair) in grounds {
-                let ground = pair.member(dark: isDark)
-                let peak = Contrast.ratio(PaletteInk.accentFill.member(dark: isDark), ground)
+            let band = PaletteInk.busyShimmer.member(dark: isDark)
+            #expect(
+                Contrast.relativeLuminance(of: band)
+                    > Contrast.relativeLuminance(of: PaletteInk.accentFill.member(dark: isDark)),
+                "the shimmer is not lighter than the house fill in \(appearance)"
+            )
+
+            let strip = PaletteInk.sidebar.member(dark: isDark)
+            let hovered = Contrast.composited(
+                isDark ? 0xFFFFFF : 0x000000, over: strip, at: isDark ? 0.055 : 0.04
+            )
+            let grounds: [(String, UInt32)] = [
+                ("the selected capsule", PaletteInk.surface.member(dark: isDark)),
+                ("the strip", strip),
+                ("the hovered strip", hovered),
+            ]
+            for (groundName, ground) in grounds {
+                let peak = Contrast.ratio(band, ground)
                 #expect(
                     peak >= Contrast.nonTextFloor,
-                    "crest peak on \(groundName), \(appearance): \(peak.rounded(to: 2)) to 1"
+                    "shimmer peak on \(groundName), \(appearance): \(peak.rounded(to: 2)) to 1"
                 )
 
-                let lit = Contrast.composited(
-                    PaletteInk.accentFill.member(dark: isDark), over: ground,
-                    at: BusyCrest.trackOpacity(dark: isDark)
-                )
-                let track = Contrast.ratio(lit, ground)
-                let hairline = Contrast.ratio(PaletteInk.border.member(dark: isDark), ground)
+                let ink = Contrast.composited(isDark ? 0xFFFFFF : 0x000000, over: ground, at: 0.85)
+                let apart = Contrast.deltaE(band, ink)
+                #expect(apart >= 10, "shimmer against the ink on \(groundName), \(appearance): \(apart.rounded(to: 1))")
+
+                let still = Contrast.composited(band, over: ink, at: BusyShimmer.stillShare)
+                let stillRatio = Contrast.ratio(still, ground)
                 #expect(
-                    track > hairline + 0.25,
-                    "track on \(groundName), \(appearance): \(track.rounded(to: 2)) against the hairline's \(hairline.rounded(to: 2))"
+                    stillRatio >= Contrast.textFloor,
+                    "still tint on \(groundName), \(appearance): \(stillRatio.rounded(to: 2)) to 1"
                 )
-                #expect(peak > track + 1, "peak and track on \(groundName), \(appearance) are one strength")
-
-                if isDark { darkTrack = min(darkTrack, track) } else { lightTrack = min(lightTrack, track) }
+                let lean = Contrast.deltaE(still, ink)
+                #expect(lean >= 5, "still tint against the ink on \(groundName), \(appearance): \(lean.rounded(to: 1))")
             }
         }
-        #expect(
-            darkTrack >= lightTrack,
-            "dark track reads at \(darkTrack.rounded(to: 2)), light at \(lightTrack.rounded(to: 2))"
-        )
     }
 
     /// A boundary is not read, so it holds the non-text floor rather than the text one. `border`

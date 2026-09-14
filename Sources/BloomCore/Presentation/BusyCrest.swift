@@ -80,28 +80,12 @@ public enum BusyCrest {
     /// core is just a thicker box.
     public static let glowShare = 0.5
 
-    /// What the rule holds everywhere the crest is not, in the light appearance.
+    /// What the rule holds everywhere the crest is not.
     ///
     /// Higher than the 0.32 the old pulse rested at, because that number was the bottom of a cycle
     /// that spent half its time above it, and this one is the whole of what most of the rule ever
     /// shows. It is also the floor under `Reduce Motion`, where nothing at all is moving.
     public static let trackOpacity = 0.42
-
-    /// The same track in the dark appearance, where 0.42 is not enough.
-    ///
-    /// The crest is drawn in `accentFill`, `#197593`, which is one value in both appearances. On
-    /// the light strip at 0.42 it composites to 1.81 to 1 against the ground, which is where the
-    /// old `running` blue sat (1.86). On the dark strip the same 0.42 measured 1.58, barely past
-    /// the 1.50 the hairline under it already makes, so the lit track read as the unlit rule: the
-    /// complaint this figure was drawn to answer. 0.6 brings dark to 1.96, at least what light
-    /// has, and still leaves the undiluted peak (3.18) a visible step above it.
-    /// `PaletteContrastTests` holds both halves of that.
-    public static let trackOpacityInDark = 0.6
-
-    /// The track strength for one appearance.
-    public static func trackOpacity(dark isDark: Bool) -> Double {
-        isDark ? trackOpacityInDark : trackOpacity
-    }
 
     /// What the crest reaches at its peak: the accent, undiluted.
     ///
@@ -143,50 +127,6 @@ public enum BusyCrest {
     /// `BusyDot.period`, so the train advances one whole crest between two beats of the window's
     /// heartbeat, and the figure closes on itself on the same frame the dots do.
     public static var wavePeriod: TimeInterval { BusyDot.period }
-
-    // MARK: Two tracks
-
-    /// How long a crest is and how long it takes to cross, for one kind of track.
-    ///
-    /// There are two tracks now, because the rule under the tab strip could not say which tab was
-    /// working and vanished altogether once a lone tab stopped drawing a strip. A single tab gets
-    /// the whole column's top edge (`column`); a strip gets one short crest per busy tab, clipped
-    /// to that tab's slot (`tab`). The profile, thickness and colour are shared, so both read as
-    /// one mark at two lengths.
-    public struct Track: Equatable, Sendable {
-        /// The crest's own length, in points.
-        public let length: Double
-        /// One crossing, from entirely off the leading edge to entirely off the trailing one.
-        public let period: TimeInterval
-
-        public init(length: Double, period: TimeInterval) {
-            self.length = length
-            self.period = period
-        }
-    }
-
-    /// The centre column's top edge, or the Ask pane's: the figure this type was tuned at.
-    public static var column: Track { Track(length: length, period: period) }
-
-    /// One tab's slot along the bottom of the strip.
-    ///
-    /// **64 points long.** A tab is 110 to 200 points wide (`TabItemView.minimumWidth`, and the
-    /// share of a strip with few tabs in it), and the column's 190 point crest would not fit on
-    /// one: parked for `Reduce Motion` it would be centred and cut at both ends, and moving it
-    /// would spend most of the cycle half off the slot. 64 is a third of the widest tab and more
-    /// than half of the narrowest, so it is a shape rather than a dash on both, and at 110 points
-    /// the head still parks against the trailing edge with its whole tail on the slot.
-    ///
-    /// **One and a half seconds a crossing**, which is `BusyDot.period`, so it stays on the
-    /// window's heartbeat the way `period` does. Half the column's period for a much shorter
-    /// track: 264 points in 1.5 seconds on a 200 point tab is about 176 points a second, half the
-    /// column's speed, and 3 points a frame at the 60Hz cap, well inside the softness of the face.
-    /// A tab's crest at the column's 3 seconds crawled, and on a short track that reads as stuck.
-    ///
-    /// Tabs in one strip share a width (`TabStrip.itemWidth`), so two busy tabs run at one speed
-    /// and in step. The two segment defect `ActivityRule` records came from two tracks of different
-    /// lengths on one period; equal slots do not have it.
-    public static var tab: Track { Track(length: 64, period: BusyDot.period) }
 
     // MARK: The profile
 
@@ -248,8 +188,8 @@ public enum BusyCrest {
     /// It begins entirely off the leading edge and ends entirely off the trailing one, so the crest
     /// is never sitting still at either end of the rule waiting for the cycle to come round. What
     /// the reader sees is a shape entering, crossing, and leaving.
-    public static func travel(alongWidth width: Double, track: Track = column) -> ClosedRange<Double> {
-        let half = track.length / 2
+    public static func travel(alongWidth width: Double) -> ClosedRange<Double> {
+        let half = length / 2
         return (-half)...(max(width, 0) + half)
     }
 
@@ -262,9 +202,9 @@ public enum BusyCrest {
     ///
     /// A rule narrower than one crest gets the crest centred instead, so the head does not run off
     /// an edge that is only a crest's length from where the tail began.
-    public static func restingCentre(alongWidth width: Double, track: Track = column) -> Double {
+    public static func restingCentre(alongWidth width: Double) -> Double {
         let usable = max(width, 0)
-        return usable - min(track.length, usable) / 2
+        return usable - min(length, usable) / 2
     }
 
     /// The smallest whole number of wavelengths that covers a rule of this width, plus the one the

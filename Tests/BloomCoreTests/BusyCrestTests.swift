@@ -145,36 +145,6 @@ struct BusyCrestTests {
         #expect((BusyCrest.period / BusyDot.period).truncatingRemainder(dividingBy: 1) == 0)
         #expect((BusyCrest.period / BusyCrest.wavePeriod).truncatingRemainder(dividingBy: 1) == 0)
         #expect(BusyCrest.wavePeriod == BusyDot.period)
-        #expect((BusyCrest.tab.period / BusyDot.period).truncatingRemainder(dividingBy: 1) == 0)
-        #expect(BusyCrest.column == BusyCrest.Track(length: BusyCrest.length, period: BusyCrest.period))
-    }
-
-    // MARK: A tab's crest
-
-    /// The narrowest tab is `TabItemView.minimumWidth`, 110 points. Parked for `Reduce Motion` the
-    /// crest has to fit on it whole, head at the trailing edge, or the still figure on a crowded
-    /// strip is a tail with no head.
-    @Test("a tab's crest fits whole on the narrowest tab and parks at its trailing edge")
-    func fitsTheNarrowestTab() {
-        let narrowest = 110.0
-        #expect(BusyCrest.tab.length < narrowest)
-        let centre = BusyCrest.restingCentre(alongWidth: narrowest, track: BusyCrest.tab)
-        #expect(centre + BusyCrest.tab.length / 2 == narrowest)
-        #expect(centre - BusyCrest.tab.length / 2 >= 0)
-    }
-
-    /// Shorter and quicker than the column's, and not so quick that it smears: at the 60Hz cap
-    /// `ActivityRuleView` draws at, a step has to stay inside the five points the cap was chosen for.
-    @Test("a tab's crest is shorter and quicker than the column's, and still steps smoothly")
-    func tabFigure() {
-        #expect(BusyCrest.tab.length < BusyCrest.column.length)
-        #expect(BusyCrest.tab.period < BusyCrest.column.period)
-        let widest = 200.0
-        let travel = BusyCrest.travel(alongWidth: widest, track: BusyCrest.tab)
-        #expect(travel.lowerBound + BusyCrest.tab.length / 2 <= 0)
-        #expect(travel.upperBound - BusyCrest.tab.length / 2 >= widest)
-        let pointsPerFrame = (travel.upperBound - travel.lowerBound) / BusyCrest.tab.period / 60
-        #expect(pointsPerFrame <= 5)
     }
 
     /// The three things the report on the old rule named, as numbers. The track is what stops a

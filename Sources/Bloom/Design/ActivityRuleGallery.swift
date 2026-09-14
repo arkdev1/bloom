@@ -9,6 +9,10 @@ import BloomCore
 /// thrown away, which is why the second round started from nothing: the reasoning survived in
 /// `BusyRule`'s header and the pictures did not. This page is the pictures, kept.
 ///
+/// **The window does not draw any of them now.** The busy signal is a shimmer through a busy tab's
+/// name or the window title (`BusyShimmer`), after the owner's report that a crest under a tab and
+/// along the column's top edge both looked bad. The page stays as the record of what was measured.
+///
 /// **Photograph it with `Bloom --snapshot-gallery <dir> --gallery activity-rule`.** No `--running`
 /// is needed, unlike `running-glyph`: this page draws `ActivityRuleFigure` directly, which has no
 /// opinion about whether a turn is under way, so the moving rows move whether or not the heartbeat
@@ -33,7 +37,7 @@ struct ActivityRuleGallery: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Activity rule")
                     .font(Typo.title)
-                Text("What the line under the tab strip says while an agent is working.")
+                Text("What the line under the tab strip said while an agent was working.")
                     .font(Typo.label)
                     .foregroundStyle(Palette.textSecondary)
             }
@@ -43,7 +47,6 @@ struct ActivityRuleGallery: View {
             }
 
             beside
-            onTabs
             enlarged
             narrow
             twoSegments
@@ -121,43 +124,6 @@ struct ActivityRuleGallery: View {
                     .background(Palette.accentFill, in: RoundedRectangle(cornerRadius: 12))
             }
             .frame(width: ActivityRuleGallery.columnWidth)
-        }
-    }
-
-    /// Where the crest is drawn when the strip is up: one short crest per busy tab, inside that
-    /// tab's slot, with an idle tab between two busy ones. The case a full width rule could not
-    /// draw, which is why it went. Tabs of 160 points, a strip of four at the column's width.
-    private var onTabs: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("On busy tabs")
-                .font(Typo.label)
-            Text("A 64 point crest per busy tab, once every beat and a half. The idle tab is dark.")
-                .font(Typo.micro)
-                .foregroundStyle(Palette.textSecondary)
-            ForEach([true, false], id: \.self) { isMoving in
-                HStack(alignment: .bottom, spacing: 10) {
-                    HStack(spacing: 0) {
-                        // Offsets as identities: four tabs, only two distinct values between them.
-                        ForEach(Array([true, false, true, false].enumerated()), id: \.offset) { _, isBusy in
-                            ZStack(alignment: .bottom) {
-                                Palette.sidebar
-                                Hairline()
-                                if isBusy {
-                                    ActivityRuleFigure(
-                                        variant: .crest, isMoving: isMoving, track: BusyCrest.tab
-                                    )
-                                    .frame(height: BusyCrest.thickness)
-                                    .padding(.horizontal, Metrics.spacingSmall / 2)
-                                }
-                            }
-                            .frame(width: 160, height: 26)
-                        }
-                    }
-                    Text(isMoving ? "Working" : "Reduce Motion")
-                        .font(Typo.micro)
-                        .foregroundStyle(Palette.textTertiary)
-                }
-            }
         }
     }
 

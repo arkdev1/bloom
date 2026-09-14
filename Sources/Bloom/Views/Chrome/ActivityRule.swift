@@ -2,25 +2,20 @@ import SwiftUI
 import QuartzCore
 import BloomCore
 
-/// The window's busy rule while an agent is working: a lit line with a crest running along it,
-/// towards the edge the next word lands at.
+/// A lit line with a crest running along it, towards the edge the next word lands at, which was
+/// the window's busy signal and is not drawn in the window any more.
 ///
-/// # Where it is drawn now
+/// # Where it went
 ///
-/// **Not on the tab strip's rule any more**, which is what most of the history below is about.
-/// The strip stopped being drawn for a lone tab and the rule went with it, so one conversation
-/// working showed nothing; and with several tabs, one line across all of them could not say
-/// which was working. So the same figure is drawn in two places and never both at once, which
-/// `BusyCrestPlacement` decides: along the centre column's top edge when there is no strip
-/// (`BusyCrest.column`), and as a short crest inside each busy tab's own slot when there is one
-/// (`BusyCrest.tab`). The tab carries no dot as well: the crest is the one signal.
+/// **Nowhere live.** It lit the rule under the centre column's tab strip, and then, once the strip
+/// stopped being drawn for a lone tab, the column's top edge and a short crest under each busy tab.
+/// The owner's report on those was that the tab's crest sat underneath the tab rather than being
+/// part of it, and that the top edge read as a hard blue line. The signal is a shimmer through the
+/// busy name now, a tab's or the window title's: see `BusyShimmer` and `BusySignalPlacement`.
 ///
-/// It is drawn in `accentFill`, the house blue, where it used to be `running`. The owner chose
-/// it; the grounds it has to read on are pinned by `PaletteContrastTests.theCrestReadsOnItsGrounds`,
-/// which is also why the dark track is stronger than the light one.
-///
-/// Everything measured below still holds for both: the thickness, the asymmetric profile, the
-/// direction, the 60Hz cap, and Core Animation driving the phase in the render server.
+/// What is kept is the figure, because `ActivityRuleGallery` and `RunningColourGallery` still draw
+/// it and everything below was measured to get it there. The view that decided whether a turn was
+/// running went with its last caller.
 ///
 /// # What this replaced, and why, twice
 ///
@@ -101,62 +96,20 @@ import BloomCore
 /// per display frame. Measured on a 120Hz panel with five agents running, four interleaved passes:
 /// the rule and the sidebar's dots cost a median of 2.96 seconds of CPU every 15, where the same
 /// pair on layers cost 0.13 against a floor of 0.20 with the heartbeat off. Do not put a
-/// `repeatForever` back on this rule.
-struct ActivityRule: View {
-    /// Whether this rule's own tab, or the tab its column shows, has something running.
-    ///
-    /// **Asked by the caller, never worked out here.** It used to read `app.selection` and
-    /// `runningWorkspaceIDs`, which answers for a whole workspace; that was right for one rule per
-    /// column and is wrong for one crest per tab. The caller has `BusyCrestPlacement`, which is the
-    /// one answer both places share, so neither can light while the other does.
-    ///
-    /// The clock stays shared. `BusyPulse` still ticks off every running workspace, so every crest
-    /// and dot in the app agrees on the phase, and what this decides is only which are visible.
-    var isRunning: Bool
-    /// The column's long crest, or a tab's short one.
-    var track: BusyCrest.Track = BusyCrest.column
-    /// Which figure to draw. The window takes the one the comparison settled on; the gallery is the
-    /// only caller that ever names another.
-    var variant: BusyRuleVariant = .live
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var pulse: BusyPulse { .shared }
-
-    var body: some View {
-        ZStack {
-            // Present only while running, rather than faded to nothing, because a strip holds a
-            // crest per tab: an idle tab with a moving layer under opacity 0 is render server work
-            // for a figure nobody can see, once per tab.
-            if isRunning {
-                ActivityRuleFigure(variant: variant, isMoving: pulse.isTicking, track: track)
-                    .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // The signal goes out rather than being cut off. An agent's turn can finish at any moment,
-        // including with the crest halfway across, and a lit line vanishing between two frames is
-        // a pop. A fifth of a second is short enough that nothing is being claimed after it stopped
-        // being true. None under Reduce Motion, which draws the still figure below.
-        .animation(reduceMotion ? nil : Motion.pane, value: isRunning)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-// MARK: - The figure
-
+/// `repeatForever` back on this rule. `BusyShimmerModifier` is a SwiftUI timeline and says what
+/// it spends against this measurement.
+///
+/// # The figure
+///
 /// One activity rule, moving or held still, with no opinion about whether anything is running.
 ///
-/// Split from `ActivityRule` so the gallery can draw all three variants in both states without an
-/// `AppModel` that has a turn in it, and so the one decision `ActivityRule` makes (is anything
-/// running) stays in one place rather than being a parameter this type has to be trusted with.
+/// It was split from a view that asked `AppModel` whether a turn was running, so the gallery could
+/// draw all three variants in both states without one. That view went when the window stopped
+/// drawing the rule, and the galleries are what draw this now.
 struct ActivityRuleFigure: View {
     var variant: BusyRuleVariant
     /// False for a rule that is present but still: `Reduce Motion`, and an offscreen render.
     var isMoving: Bool
-    /// How long the crest is and how quickly it crosses. Only `.crest` reads it.
-    var track: BusyCrest.Track = BusyCrest.column
 
     var body: some View {
         content
@@ -172,10 +125,10 @@ struct ActivityRuleFigure: View {
             // in SwiftUI is what lets `ImageRenderer` still draw a rule that is not moving. See
             // `Snapshot`, which cannot draw an `NSViewRepresentable` at all and paints a yellow
             // placeholder over one.
-            MovingActivityRule(variant: variant, track: track, epoch: BusyPulse.shared.epoch)
+            MovingActivityRule(variant: variant, epoch: BusyPulse.shared.epoch)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            StillActivityRule(variant: variant, track: track)
+            StillActivityRule(variant: variant)
         }
     }
 }
@@ -193,20 +146,17 @@ struct ActivityRuleFigure: View {
 /// word arrives. See `BusyCrest.restingCentre`.
 private struct StillActivityRule: View {
     var variant: BusyRuleVariant
-    var track: BusyCrest.Track
-
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         switch variant {
         case .crest:
             ZStack(alignment: .bottomTrailing) {
-                lit
+                track
                 // Trailing, which is `restingCentre` for every width this rule is drawn at: the
-                // centre column is 760 points against a crest of 190, and the narrowest tab is 110
-                // against 64. A window dragged narrower than a crest loses the far end of the tail
-                // off the leading edge, which is the faintest part of the figure.
-                crest(BusyCrest.stops()).frame(width: track.length)
+                // centre column is the narrow case and it is 760 points against a crest of 190. A
+                // window dragged narrower than a crest loses the far end of the tail off the
+                // leading edge, which is the faintest part of the figure.
+                crest(BusyCrest.stops()).frame(width: BusyCrest.length)
             }
         case .current:
             // The train has to know how many wavelengths the rule holds, so this one reads its
@@ -215,7 +165,7 @@ private struct StillActivityRule: View {
             // compared against that one.
             GeometryReader { geometry in
                 ZStack(alignment: .bottom) {
-                    lit
+                    track
                     crest(BusyCrest.waveStops(
                         wavelengths: BusyCrest.wavelengths(alongWidth: geometry.size.width)
                     ))
@@ -227,7 +177,7 @@ private struct StillActivityRule: View {
             // exactly what a screenshot of this rule has shown since it was drawn. It is in the set
             // so the comparison has a control in it, and this is the state where it loses.
             Rectangle()
-                .fill(Palette.accentFill)
+                .fill(Palette.running)
                 .opacity(BusyRule.opacity(at: BusyRule.resting))
                 .frame(maxWidth: .infinity)
                 .frame(height: BusyRule.restingHeight)
@@ -235,10 +185,10 @@ private struct StillActivityRule: View {
     }
 
     /// The lit line the crest rides, which is the whole width and is never dark.
-    private var lit: some View {
+    private var track: some View {
         Rectangle()
-            .fill(Palette.accentFill)
-            .opacity(BusyCrest.trackOpacity(dark: colorScheme == .dark))
+            .fill(Palette.running)
+            .opacity(BusyCrest.trackOpacity)
             .frame(maxWidth: .infinity)
             .frame(height: BusyRule.restingHeight)
     }
@@ -257,7 +207,7 @@ private struct StillActivityRule: View {
         LinearGradient(
             stops: stops.map {
                 Gradient.Stop(
-                    color: Palette.accentFill.opacity($0.opacity * scale),
+                    color: Palette.running.opacity($0.opacity * scale),
                     location: CGFloat($0.location)
                 )
             },
@@ -273,19 +223,18 @@ private struct StillActivityRule: View {
 /// The moving half: two gradient layers carried along the rule, or faded in place.
 private struct MovingActivityRule: NSViewRepresentable {
     var variant: BusyRuleVariant
-    var track: BusyCrest.Track
     /// The heartbeat's start, which is the only thing that decides where in its cycle the rule is.
     /// See `BusyPulse.epoch`.
     var epoch: CFTimeInterval
 
     func makeNSView(context: Context) -> ActivityRuleView {
         let view = ActivityRuleView(frame: .zero)
-        view.configure(variant: variant, track: track, epoch: epoch)
+        view.configure(variant: variant, epoch: epoch)
         return view
     }
 
     func updateNSView(_ view: ActivityRuleView, context: Context) {
-        view.configure(variant: variant, track: track, epoch: epoch)
+        view.configure(variant: variant, epoch: epoch)
     }
 
     /// Fills whatever it is given, and asks for nothing: the strip's width is the strip's business
@@ -323,12 +272,11 @@ final class ActivityRuleView: BusyPulseLayerView {
     /// Twenty four halves that.
     private static let fadeFrameRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 24)
 
-    private let trackLayer = CALayer()
+    private let track = CALayer()
     private let core = CAGradientLayer()
     private let glow = CAGradientLayer()
 
     private var variant: BusyRuleVariant = .live
-    private var track: BusyCrest.Track = BusyCrest.column
     /// Optional, so the first `configure` always installs. A stored zero would match the epoch a
     /// heartbeat that has never run reports, and the gallery draws exactly that case.
     private var epoch: CFTimeInterval?
@@ -342,7 +290,7 @@ final class ActivityRuleView: BusyPulseLayerView {
             gradient.startPoint = CGPoint(x: 0, y: 0.5)
             gradient.endPoint = CGPoint(x: 1, y: 0.5)
         }
-        layer?.addSublayer(trackLayer)
+        layer?.addSublayer(track)
         layer?.addSublayer(glow)
         layer?.addSublayer(core)
         applyColors()
@@ -359,7 +307,7 @@ final class ActivityRuleView: BusyPulseLayerView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let bottom = bounds.height
-        trackLayer.frame = CGRect(
+        track.frame = CGRect(
             x: 0,
             y: bottom - CGFloat(BusyRule.restingHeight),
             width: bounds.width,
@@ -389,7 +337,7 @@ final class ActivityRuleView: BusyPulseLayerView {
     private var figureWidth: CGFloat {
         switch variant {
         case .crest:
-            CGFloat(track.length)
+            CGFloat(BusyCrest.length)
         case .current:
             CGFloat(BusyCrest.wavelengths(alongWidth: bounds.width)) * CGFloat(BusyCrest.waveLength)
         case .swell:
@@ -400,7 +348,7 @@ final class ActivityRuleView: BusyPulseLayerView {
     /// Where the centre of that pair sits with nothing animating it.
     private var restingCentre: CGFloat {
         switch variant {
-        case .crest: CGFloat(BusyCrest.restingCentre(alongWidth: bounds.width, track: track))
+        case .crest: CGFloat(BusyCrest.restingCentre(alongWidth: bounds.width))
         // The train starts one wavelength to the left and slides back to flush, so at rest it is
         // flush and the rule is covered at both ends of the travel.
         case .current, .swell: figureWidth / 2
@@ -412,19 +360,16 @@ final class ActivityRuleView: BusyPulseLayerView {
     override func applyColors() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        // The house blue, which the owner chose when the crest moved off the strip's rule. It was
-        // `running` before that, and `accent` before that. The track is stronger in dark because
-        // `accentFill` is one value in both appearances and 0.42 of it on dark chrome read as the
-        // unlit hairline; see `BusyCrest.trackOpacityInDark`.
-        let tint = resolved(Palette.accentFillNSColor)
-        let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        trackLayer.backgroundColor = tint.copy(alpha: BusyCrest.trackOpacity(dark: isDark)) ?? tint
+        // `running` and not `accent`, which is what this drew for as long as the two were the
+        // same value. See `Palette.running`: a lit rule and a passing tick may not be one colour.
+        let running = resolved(Palette.runningNSColor)
+        track.backgroundColor = running.copy(alpha: BusyCrest.trackOpacity) ?? running
         // Hidden rather than transparent for the swell: its own core layer is the whole width and
         // is the rule, so a track under it would be a second line at a strength nobody chose.
-        trackLayer.isHidden = variant == .swell
+        track.isHidden = variant == .swell
         let stops = gradientStops
-        apply(stops, scale: 1, to: core, tint: tint)
-        apply(stops, scale: BusyCrest.glowShare, to: glow, tint: tint)
+        apply(stops, scale: 1, to: core, tint: running)
+        apply(stops, scale: BusyCrest.glowShare, to: glow, tint: running)
         CATransaction.commit()
     }
 
@@ -456,17 +401,12 @@ final class ActivityRuleView: BusyPulseLayerView {
     /// being resized makes a great many of them. Reinstalling an animation that is already correct
     /// would reset nothing visible, since the phase comes from an absolute epoch, but it would ask
     /// the render server to rebuild it for no reason.
-    func configure(variant: BusyRuleVariant, track: BusyCrest.Track, epoch: CFTimeInterval) {
+    func configure(variant: BusyRuleVariant, epoch: CFTimeInterval) {
         var changed = false
         if variant != self.variant {
             self.variant = variant
             changed = true
             applyColors()
-            needsLayout = true
-        }
-        if track != self.track {
-            self.track = track
-            changed = true
             needsLayout = true
         }
         if epoch != self.epoch {
@@ -524,7 +464,7 @@ final class ActivityRuleView: BusyPulseLayerView {
     private var travel: ClosedRange<CGFloat> {
         switch variant {
         case .crest:
-            let range = BusyCrest.travel(alongWidth: bounds.width, track: track)
+            let range = BusyCrest.travel(alongWidth: bounds.width)
             return CGFloat(range.lowerBound)...CGFloat(range.upperBound)
         // One wavelength, and the same one whatever the rule is: a train that closes on itself
         // travelling exactly its own period is a figure with no seam and no dependence on width.
@@ -535,7 +475,7 @@ final class ActivityRuleView: BusyPulseLayerView {
     }
 
     private var period: TimeInterval {
-        variant == .crest ? track.period : BusyCrest.wavePeriod
+        variant == .crest ? BusyCrest.period : BusyCrest.wavePeriod
     }
 
     /// How strongly the swell's glow is drawn at a point in the pulse, from the thickness the core
