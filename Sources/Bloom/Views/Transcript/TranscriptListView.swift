@@ -490,19 +490,30 @@ struct TranscriptListView: View {
                 },
                 content: {
                     AnyView(
-                        WorkspaceEventsView(
-                            workspaceID: workspaceID,
-                            isRunning: isRunningSetup,
-                            // Nothing said yet AND nothing waiting to be said. Once there is a bubble
-                            // on screen, "You can ask for something now" is answered by the bubble.
-                            isFirstThing: transcript.hasNothingToShow,
-                            paneHeight: paneHeight,
-                            onVisibilityChange: { showsSetup = $0 },
-                            onShowLogEnd: { wasAsked in showSetupLogEnd(wasAsked: wasAsked) }
-                        )
-                        // Match Ask Bloom's opening space so the first bubble clears the tab bar.
+                        // The opening space so the first bubble clears the fade and the tab bar.
                         // This cannot be a content inset: see `TranscriptTable.makeNSView`.
-                        .padding(.top, Metrics.pane)
+                        //
+                        // **A spacer of its own, and not `.padding(.top)` on the feed.** The feed is
+                        // a `Group` over a `ForEach`, and in a repository with no setup script that
+                        // `ForEach` is empty: padding hung on no views is no view, the cell measured
+                        // nought, and the first message landed six points from the top with its
+                        // upper half under the fade.
+                        VStack(alignment: .leading, spacing: 0) {
+                            Color.clear
+                                .frame(height: TranscriptLayout.topSpace)
+                                .accessibilityHidden(true)
+                            WorkspaceEventsView(
+                                workspaceID: workspaceID,
+                                isRunning: isRunningSetup,
+                                // Nothing said yet AND nothing waiting to be said. Once there is a
+                                // bubble on screen, "You can ask for something now" is answered by
+                                // the bubble.
+                                isFirstThing: transcript.hasNothingToShow,
+                                paneHeight: paneHeight,
+                                onVisibilityChange: { showsSetup = $0 },
+                                onShowLogEnd: { wasAsked in showSetupLogEnd(wasAsked: wasAsked) }
+                            )
+                        }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     )
                 }
@@ -514,7 +525,7 @@ struct TranscriptListView: View {
                 id: .setup,
                 contentKey: TranscriptContentKey { $0.combine("ask-top-spacing") },
                 content: {
-                    AnyView(Color.clear.frame(height: Metrics.pane).accessibilityHidden(true))
+                    AnyView(Color.clear.frame(height: TranscriptLayout.topSpace).accessibilityHidden(true))
                 }
             ))
         }
@@ -905,7 +916,7 @@ struct TranscriptListView: View {
         // under it still works.
         .overlay(alignment: .top) {
             LinearGradient(colors: [Palette.surface, Palette.surface.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .frame(height: Metrics.spacingWide * 2)
+                .frame(height: TranscriptLayout.topFade)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
