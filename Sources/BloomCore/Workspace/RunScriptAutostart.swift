@@ -103,9 +103,7 @@ public enum RunScriptAutostart: Sendable, Hashable {
     public static func decide(
         scripts: [RunScript], approval: RunScriptAutostartApproval?
     ) -> RunScriptAutostart {
-        let candidates = scripts.filter {
-            $0.autostart && !$0.command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
+        let candidates = candidates(in: scripts)
         guard !candidates.isEmpty else { return .nothing }
 
         guard let approval else { return .ask(scripts: candidates, changes: []) }
@@ -115,6 +113,27 @@ public enum RunScriptAutostart: Sendable, Hashable {
             scripts: candidates,
             changes: unapproved.map { Change(script: $0, approved: approval.commands[$0.id]?.last) }
         )
+    }
+
+    /// What autostart was settled against, so it can tell when there is something new to settle.
+    ///
+    /// Settling once per workspace per launch was not enough, and it was found in the first
+    /// minute of use: a settings file added while the workspace was already open, or read a moment
+    /// after the column appeared, left a workspace settled on "nothing to autostart" for the rest
+    /// of the launch. The notice never came and the dev server never started. Keyed on this
+    /// instead, a changed file is settled again, and an unchanged one, which is every re-read on
+    /// every switch, is not.
+    ///
+    /// The id and the exact command of each candidate, in order. A name or an icon changing is not
+    /// a reason to start anything.
+    public static func signature(of scripts: [RunScript]) -> [String] {
+        candidates(in: scripts).map { "\($0.id)\u{1F}\($0.command)" }
+    }
+
+    private static func candidates(in scripts: [RunScript]) -> [RunScript] {
+        scripts.filter {
+            $0.autostart && !$0.command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 }
 

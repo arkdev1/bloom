@@ -35,6 +35,21 @@ struct CenterColumnView: View {
             // Once per workspace per launch; see `RunScriptLauncher.considerAutostart`.
             await RunScriptLauncher.shared.considerAutostart(in: model)
         }
+        // A settings file that changes while the workspace is open is settled again. Without
+        // this, a file added to an open workspace never asked and never started anything until
+        // the next launch. Unchanged autostart commands settle to nothing; see
+        // `RunScriptAutostart.signature(of:)`.
+        .onChange(of: model.settings.runScripts) { _, _ in
+            Task { await RunScriptLauncher.shared.considerAutostart(in: model) }
+        }
+        // Settings are otherwise re-read only on a switch, so a file edited in another app, or
+        // pulled from a terminal outside Bloom, did not reach the `+` menu, the notices or the quick
+        // prompt panel of the workspace already on screen. Coming back to the window is the moment
+        // somebody who just changed it expects to see the change. The read is off the main actor
+        // and coalesced, so this costs a parse and nothing more.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.refreshSettings()
+        }
     }
 
     /// Opens the tab a workspace created with "Start with: Terminal" or "Start with: Browser" was

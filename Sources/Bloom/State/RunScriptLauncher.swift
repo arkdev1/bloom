@@ -30,9 +30,10 @@ final class RunScriptLauncher {
     /// Projects whose question was answered with Not Now, which holds for the rest of the launch.
     @ObservationIgnored private var snoozed: Set<RepoID> = []
 
-    /// Workspaces autostart has been settled for this launch, and the ones being settled right
-    /// now, so the column's arrival and a setup run finishing cannot both start the same script.
-    @ObservationIgnored private var settled: Set<WorkspaceID> = []
+    /// What autostart was last settled against for each workspace this launch, and the ones being
+    /// settled right now, so the column's arrival and a setup run finishing cannot both start the
+    /// same script. By signature rather than a flag; see `RunScriptAutostart.signature(of:)`.
+    @ObservationIgnored private var settled: [WorkspaceID: [String]] = [:]
     @ObservationIgnored private var settling: Set<WorkspaceID> = []
 
     private init() {}
@@ -157,7 +158,8 @@ final class RunScriptLauncher {
     // MARK: - Autostart
 
     /// Settles autostart for a workspace that has just been shown, or whose setup has just
-    /// finished. Once per workspace per launch.
+    /// finished, or whose settings file has just changed. Once per workspace for each set of
+    /// autostart commands, per launch.
     ///
     /// Nothing starts without the owner's approval of the exact commands; see
     /// `RunScriptAutostartApproval` for why a line in a committed file is a request and not a
@@ -165,13 +167,18 @@ final class RunScriptLauncher {
     /// and the setup run finishing asks again.
     func considerAutostart(in model: WorkspaceModel) async {
         let workspaceID = model.workspace.id
-        guard !settled.contains(workspaceID), !settling.contains(workspaceID),
+        guard !settling.contains(workspaceID),
               let repo = model.repo, let store = model.store else { return }
         settling.insert(workspaceID)
         defer { settling.remove(workspaceID) }
 
         await model.reloadSettings()
         let settings = model.settings
+        let signature = RunScriptAutostart.signature(of: settings.runScripts)
+        guard settled[workspaceID] != signature else { return }
+        // A question standing about a set that has since changed is about commands that are no
+        // longer in the file, so it goes, and the new set is asked about below if it needs to be.
+        asks[workspaceID] = nil
         guard RunScriptAutostart.isTimely(
             isRunningSetup: model.isRunningSetup,
             setupState: model.workspace.setupState,
@@ -182,9 +189,9 @@ final class RunScriptLauncher {
         let decision = RunScriptAutostart.decide(scripts: settings.runScripts, approval: approval)
         switch decision {
         case .nothing:
-            settled.insert(workspaceID)
+            settled[workspaceID] = signature
         case .run(let scripts):
-            settled.insert(workspaceID)
+            settled[workspaceID] = signature
             for script in scripts { await start(script, in: model, bringForward: false) }
         case .ask:
             guard !snoozed.contains(repo.id) else { return }
@@ -210,7 +217,7 @@ final class RunScriptLauncher {
         guard let repo = model.repo, let store = model.store else { return }
         let workspaceID = model.workspace.id
         dropAsks(of: repo.id)
-        settled.insert(workspaceID)
+        settled[workspaceID] = RunScriptAutostart.signature(of: notice.scripts)
 
         let approval = await RunScriptAutostartApproval.load(repoID: repo.id, from: store)
             ?? RunScriptAutostartApproval()

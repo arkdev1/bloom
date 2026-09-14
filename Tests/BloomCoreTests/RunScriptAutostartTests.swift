@@ -20,6 +20,26 @@ struct RunScriptAutostartTests {
         #expect(RunScriptAutostart.decide(scripts: [missing], approval: nil) == .nothing)
     }
 
+    @Test("the signature changes when an autostart script appears or its command changes, and nothing else")
+    func signatureTracksWhatWouldStart() {
+        let none = RunScriptAutostart.signature(of: [Self.seed])
+        let one = RunScriptAutostart.signature(of: [Self.seed, Self.vite])
+        #expect(none.isEmpty)
+        #expect(one != none)
+
+        var renamed = Self.vite
+        renamed.name = "Vite dev server"
+        renamed.icon = "bolt"
+        #expect(RunScriptAutostart.signature(of: [Self.seed, renamed]) == one)
+
+        var changed = Self.vite
+        changed.command = "yarn dev --host"
+        #expect(RunScriptAutostart.signature(of: [Self.seed, changed]) != one)
+
+        let missing = RunScript(id: "gone", name: "Gone", command: "", autostart: true)
+        #expect(RunScriptAutostart.signature(of: [missing]).isEmpty)
+    }
+
     @Test("a project that never approved anything is asked about every autostart script")
     func neverApprovedAsks() {
         let decision = RunScriptAutostart.decide(scripts: [Self.vite, Self.seed, Self.horizon], approval: nil)

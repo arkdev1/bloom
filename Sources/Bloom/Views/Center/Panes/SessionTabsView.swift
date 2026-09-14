@@ -390,6 +390,12 @@ struct SessionTabsView: View {
         .menuIndicator(.hidden)
         .frame(width: Metrics.barHeight, height: Metrics.barHeight)
         .contentShape(Rectangle())
+        // Re-read on the way to the button, because a `Menu` has no moment of its own to do it
+        // in: its items are built before it opens. A run script added from a terminal inside
+        // Bloom changes no selection and brings no window forward, so without this it only reached
+        // the menu on the next switch. The read is coalesced and off the main actor, and the pointer
+        // takes longer to reach the button than the parse takes.
+        .onHover { if $0 { model.refreshSettings() } }
         .help("New tab in this workspace")
     }
 
