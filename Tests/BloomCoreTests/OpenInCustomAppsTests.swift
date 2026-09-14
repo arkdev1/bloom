@@ -132,6 +132,28 @@ struct OpenInCustomAppsTests {
         #expect(!EditorCatalog.isKnown(bundleID: "com.helix-editor.helix"))
     }
 
+    @Test("the system default keeps its file row unless an addition already offers files")
+    func systemDefaultRow() {
+        // Helix is offered files, so its file row is already there. SmartGit is folders only, and
+        // being added must not take away the row it had as the default for a file type.
+        #expect(!EditorCatalog.needsSystemDefaultRow(bundleID: "com.helix-editor.Helix", adding: [helix, smartGit]))
+        #expect(EditorCatalog.needsSystemDefaultRow(bundleID: "com.syntevo.smartgit", adding: [helix, smartGit]))
+        #expect(!EditorCatalog.needsSystemDefaultRow(bundleID: "com.jetbrains.PhpStormLight-EAP", adding: []))
+        #expect(EditorCatalog.needsSystemDefaultRow(bundleID: "com.example.SomeEditor", adding: []))
+    }
+
+    @Test("the file name on disk survives the round trip")
+    func fileNameSurvivesStorage() {
+        let custom = customApps()
+        let renamed = ExternalApp(
+            bundleID: "com.example.Thing", name: "Thing", targets: .both, fileName: "Thing Beta.app"
+        )
+
+        custom.add(renamed)
+
+        #expect(custom.apps.first?.fileName == "Thing Beta.app")
+    }
+
     @Test("GitKraken is a git client, so it wants the repository and not a file out of it")
     func gitKrakenIsFolderOnly() {
         let gitKraken = EditorCatalog.known.first { $0.bundleID == "com.axosoft.gitkraken" }

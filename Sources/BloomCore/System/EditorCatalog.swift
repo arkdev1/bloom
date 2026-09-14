@@ -15,10 +15,6 @@ public struct OpenTargets: OptionSet, Sendable, Hashable {
     public static let both: OpenTargets = [.file, .folder]
 }
 
-/// Stored as its raw bits, because a user-added application (see `OpenInCustomApps`) carries one
-/// of these to disk and back.
-extension OpenTargets: Codable {}
-
 /// One application Bloom knows how to hand a path to.
 ///
 /// Identified by bundle id rather than by path, because the path is the one thing about an
@@ -26,7 +22,7 @@ extension OpenTargets: Codable {}
 /// container, a homebrew cask can land in `~/Applications`, and plenty of people keep their
 /// editors somewhere else entirely. LaunchServices knows where all of them are, and answers by
 /// bundle id.
-public struct ExternalApp: Identifiable, Sendable, Hashable, Codable {
+public struct ExternalApp: Identifiable, Sendable, Hashable {
     public var id: String { bundleID }
     /// The identifier this application is filed under here, which is the one the menu's order and
     /// the "last opened in" memory are keyed by whichever copy is actually installed.
@@ -258,14 +254,8 @@ public enum EditorCatalog {
         owner(ofBundleID: bundleID, in: apps) != nil
     }
 
-    /// The built-in catalogue with the user's own applications after it.
-    ///
-    /// This is the second place the user gets a say in what the menu contains, beside the system
-    /// default for a file type, and it exists because the first one cannot reach a folder. The
-    /// default handler for a folder is Finder on every Mac, so there was no way at all to put a
-    /// git client this file had not heard of into "Open Worktree in": the report was GitKraken,
-    /// which is in the list above now, but the next one will not be, and a settings pane is a
-    /// better answer than a pull request per application.
+    /// The built-in catalogue with the user's own applications after it. See `OpenInCustomApps`
+    /// for why the user gets a say at all.
     ///
     /// An addition the catalogue already owns is dropped rather than shown twice, which is what
     /// keeps a copy of Bloom that gains a built-in entry from drawing the same application under
@@ -278,6 +268,16 @@ public enum EditorCatalog {
             result.append(app)
         }
         return result
+    }
+
+    /// Whether the system's default application for a file type needs a row of its own in a
+    /// file's menu, or is already there.
+    ///
+    /// A user's addition only counts when it is offered files. One added as folders only is not in
+    /// a file's menu at all, so treating it as known would take away the "open this file" row the
+    /// system default gave it before it was added.
+    public static func needsSystemDefaultRow(bundleID: String, adding custom: [ExternalApp]) -> Bool {
+        !isKnown(bundleID: bundleID) && !isKnown(bundleID: bundleID, in: custom.filter { $0.opens(.file) })
     }
 
     /// The known applications that are installed, in the catalogue's own order.

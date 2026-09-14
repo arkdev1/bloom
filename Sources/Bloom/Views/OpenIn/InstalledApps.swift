@@ -58,14 +58,9 @@ enum InstalledApps {
         systemDefaults = [:]
     }
 
-    /// The built-in catalogue and the user's own additions after it. See `OpenInCustomApps`.
-    private static var catalogue: [ExternalApp] {
-        EditorCatalog.catalogue(adding: OpenInCustomApps().apps)
-    }
-
     private static func scan() -> [DetectedApp] {
         defer { listings = [:] }
-        return catalogue.compactMap { app in
+        return EditorCatalog.catalogue(adding: OpenInCustomApps().apps).compactMap { app in
             guard let url = locate(app) else { return nil }
             return DetectedApp(app: app, url: url, icon: icon(at: url))
         }
@@ -167,7 +162,7 @@ enum InstalledApps {
         var found: DetectedApp?
         if let url = NSWorkspace.shared.urlForApplication(toOpen: URL(fileURLWithPath: path)),
            let bundleID = Bundle(url: url)?.bundleIdentifier,
-           !EditorCatalog.isKnown(bundleID: bundleID, in: catalogue) {
+           EditorCatalog.needsSystemDefaultRow(bundleID: bundleID, adding: OpenInCustomApps().apps) {
             found = DetectedApp(
                 app: ExternalApp(bundleID: bundleID, name: name(of: url), targets: .file),
                 url: url,
@@ -180,7 +175,7 @@ enum InstalledApps {
 
     /// Sized here rather than in the menu, because SwiftUI hands an `NSImage` to AppKit at whatever
     /// size the image says it is, and an application icon says 512 points.
-    private static func icon(at url: URL) -> NSImage {
+    static func icon(at url: URL) -> NSImage {
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         let sized = icon.copy() as? NSImage ?? icon
         sized.size = NSSize(width: 16, height: 16)
