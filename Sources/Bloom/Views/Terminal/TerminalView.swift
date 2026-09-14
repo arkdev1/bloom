@@ -20,11 +20,7 @@ struct TerminalLaunch: Sendable, Hashable {
     static func loginShell(directory: String, extra: [String: String]) -> TerminalLaunch {
         let shell = LoginShell.path()
 
-        var variables = Shell.environment(extra: extra)
-        variables["TERM"] = "xterm-256color"
-        variables["COLORTERM"] = "truecolor"
-        variables["TERM_PROGRAM"] = "Bloom"
-        if variables["LANG"] == nil { variables["LANG"] = "en_US.UTF-8" }
+        let variables = Shell.terminalEnvironment(inheriting: Shell.environment(), extra: extra)
 
         return TerminalLaunch(
             executable: shell,
@@ -52,11 +48,7 @@ struct TerminalLaunch: Sendable, Hashable {
         directory: String,
         extra: [String: String]
     ) -> TerminalLaunch {
-        var variables = Shell.environment()
-        variables["TERM"] = "xterm-256color"
-        variables["COLORTERM"] = "truecolor"
-        variables["TERM_PROGRAM"] = "Bloom"
-        if variables["LANG"] == nil { variables["LANG"] = "en_US.UTF-8" }
+        let variables = Shell.terminalEnvironment(inheriting: Shell.environment())
 
         var sessionVariables = extra
         sessionVariables["COLORTERM"] = "truecolor"
@@ -165,11 +157,30 @@ final class BloomTerminalView: LocalProcessTerminalView {
         TerminalGhostty.font(family: typography.fontFamily ?? ghostty?.fontFamily, size: size)
     }
 
+    private(set) var hasStarted = false
+    private var displayedOutput = ""
+
+    func showOutput(_ text: String) {
+        guard !hasStarted, text != displayedOutput else { return }
+        let addition: String
+        if text.hasPrefix(displayedOutput) {
+            addition = String(text.dropFirst(displayedOutput.count))
+        } else {
+            clearScreen()
+            addition = text
+        }
+        feed(text: addition.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\n", with: "\r\n"))
+        displayedOutput = text
+    }
+
     // MARK: - Process
 
     func start(_ launch: TerminalLaunch) {
         guard !process.running else { return }
         hasExited = false
+        hasStarted = true
+        displayedOutput = ""
         startProcess(
             executable: launch.executable,
             args: launch.arguments,
@@ -484,6 +495,7 @@ struct TerminalView: NSViewRepresentable {
     /// gets the tab's, so splitting a terminal opened on a folder stays in that folder, which is
     /// what splitting does in every other terminal.
     var directory: String = ""
+    var output: String?
 
     /// Split panes only. A tab holding one terminal is always its own focused pane and never moves
     /// the keyboard, so it leaves all four of these alone.
@@ -515,13 +527,13 @@ struct TerminalView: NSViewRepresentable {
         session.onContextMenu = onContextMenu
         session.onExit = onExit
         // Before the request, whose `didSet` reads it.
-        host.isFocusedPane = isFocusedPane
+        host.isFocusedPane = output == nil && isFocusedPane
         host.focusRequest = focusRequest
     }
 
     @MainActor private var session: BloomTerminalView {
         TerminalSessionStore.shared.terminal(
-            for: tab, workspace: workspace, repo: repo, port: port, directory: directory
+            for: tab, workspace: workspace, repo: repo, port: port, directory: directory, output: output
         )
     }
 }

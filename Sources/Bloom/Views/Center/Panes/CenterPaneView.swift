@@ -73,6 +73,7 @@ struct CenterPaneView: View {
     private var waiting: PaneWait? {
         switch showing {
         case .chat(let sessionID):
+            if CenterTabStore.shared.terminal(for: sessionID, in: model.workspace.id) != nil { return nil }
             // The transcript exists, so the pane has a composer to draw and the wait belongs to
             // the transcript rather than to the pane. See `ChatPaneView.waiting`.
             //
@@ -156,7 +157,16 @@ struct CenterPaneView: View {
         case .chat(let sessionID):
             // The lookup only, never `transcript(for:)`: building one writes observed state, and a
             // body may not do that. `prepare` below is where it is built.
-            if let transcript = model.existingTranscript(for: sessionID) {
+            if let terminal = CenterTabStore.shared.terminal(for: sessionID, in: model.workspace.id) {
+                if model.pendingCLILaunches.contains(sessionID) {
+                    cliSetup(terminal, sessionID: sessionID)
+                } else {
+                    ToolPaneView(
+                        model: model, tab: terminal, siblings: paneContents,
+                        splitColumn: { split($0, opening: $1) }, paneMenu: hostedMenu
+                    )
+                }
+            } else if let transcript = model.existingTranscript(for: sessionID) {
                 ChatPaneView(transcript: transcript, model: model, pane: pane)
             } else if model.sessions.contains(where: { $0.id == sessionID }) {
                 // Nothing, rather than the `LoadingView` that used to be here. This branch is the
@@ -329,6 +339,16 @@ struct CenterPaneView: View {
 
     /// A fresh workspace runs its setup script before anything else, and that can take minutes on a
     /// large repository. Saying so beats an empty rectangle that looks like a failure.
+    private func cliSetup(_ terminal: CenterTab, sessionID: SessionID) -> some View {
+        TerminalView(
+            tab: TerminalTab(id: TerminalTabID(terminal.id), workspaceID: model.workspace.id, title: terminal.title),
+            workspace: model.workspace, repo: model.repo, port: model.port,
+            output: (model.sessions.first { $0.id == sessionID }?.agentKind ?? .claudeCode)
+                .interactiveSetupOutput(prompt: model.pendingCLIPrompts[sessionID], log: model.setupOutput)
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var setupState: some View {
         EmptyStateView(
             glyph: "gearshape.2",
@@ -346,7 +366,7 @@ struct CenterPaneView: View {
             title: "No session in this pane",
             message: "Sessions share the worktree but not the conversation, so a new one starts with a clean context.",
             actionTitle: "Start a session",
-            action: { Task { await model.createSession() } }
+            action: { NewPane.open(.chat, in: model) { tabs.reveal($0, in: model) } }
         )
     }
 
@@ -379,13 +399,8 @@ struct CenterPaneView: View {
                         Label(kind.title, systemImage: kind.symbol)
                             .labelStyle(.titleAndIcon)
                     }
-                    // Terminal is the prominent one because this pane exists for a workspace that
-                    // opened with a terminal and whose shell has ended, so it is what the reader
-                    // most likely wants back. It carries the system control accent, like every
-                    // primary action in the app.
-                    .buttonStyle(.borderedProminent)
-                    .tint(kind == .terminal ? Palette.controlAccent : Palette.surfaceRaised)
-                    .foregroundStyle(kind == .terminal ? Palette.selectedEmphasizedText : Palette.textPrimary)
+                    .buttonStyle(.bordered)
+                    .tint(Palette.controlAccent)
                 }
             }
         }

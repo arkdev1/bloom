@@ -55,7 +55,16 @@ struct ToolPaneView: View {
                             port: model.port,
                             directory: tab.directory,
                             runScript: runScript,
-                            onCloseTab: { Task { await CenterTabStore.shared.close(tab, in: model) } },
+                            onCloseTab: {
+                                Task {
+                                    if let sessionID = tab.agentSessionID,
+                                       let session = model.sessions.first(where: { $0.id == sessionID }) {
+                                        await model.closeSession(session)
+                                    } else {
+                                        await CenterTabStore.shared.close(tab, in: model)
+                                    }
+                                }
+                            },
                             splitColumn: splitColumn,
                             terminalLabel: tab.title,
                             onAddToChat: terminalHandoff

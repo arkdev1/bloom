@@ -224,9 +224,7 @@ struct SessionTabsView: View {
     ) -> some View {
         SessionTabView(
             session: session,
-            agentGlyph: PaneGlyph.agentMark(
-                for: session.agentKind, among: model.sessions.map(\.agentKind)
-            ),
+            agentGlyph: sessionGlyph(for: session),
             isActive: selected == .chat(session.id),
             isRunning: model.isRunning(session),
             isRenaming: renamingID == session.id.rawValue,
@@ -252,6 +250,16 @@ struct SessionTabsView: View {
             onBegin: { begin(.chat(session.id)) },
             onEnd: { finish(taken: $0) }
         ))
+    }
+
+    private func sessionGlyph(for session: Session) -> String? {
+        if let turn = TerminalSessionStore.shared.agentTurns[session.id], turn.isAwaitingPermission {
+            return "questionmark.circle"
+        }
+        if CenterTabStore.shared.terminal(for: session.id, in: model.workspace.id) != nil {
+            return PaneGlyph.agentMark(for: session.agentKind)
+        }
+        return PaneGlyph.agentMark(for: session.agentKind, among: model.sessions.map(\.agentKind))
     }
 
     private func toolTab(
@@ -303,6 +311,10 @@ struct SessionTabsView: View {
     /// A dictionary lookup behind one address parse, which is what it costs to ask this from a
     /// body that redraws on a window resize. See `BrowserFaviconStore`.
     private func icon(for tab: CenterTab) -> TabItemIcon {
+        if tab.kind == .terminal,
+           let agent = TerminalSessionStore.shared.detectedAgent(inTab: tab.id) {
+            return .symbol(PaneGlyph.agentMark(for: agent))
+        }
         if tab.kind == .terminal, let script = runScript(of: tab) {
             return .symbol(RunScriptGlyph.symbol(for: script.icon))
         }

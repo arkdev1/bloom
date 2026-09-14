@@ -180,7 +180,7 @@ final class WorkspaceTabsStore {
         // members an agent started in it, and those are sidebar rows rather than tabs. See
         // `TabSet.tabbable`, which is where that rule is argued.
         let sessions = TabSet.tabbable(model.sessions)
-        let tools = CenterTabStore.shared.tabs(for: model.workspace.id).map(\.id)
+        let tools = CenterTabStore.shared.tabs(for: model.workspace.id).filter { $0.agentSessionID == nil }.map(\.id)
         return StripOrder.entries(
             sessions: sessions,
             tools: tools,
@@ -226,7 +226,7 @@ final class WorkspaceTabsStore {
         guard let order = StripOrder.rewritten(
             drawn,
             sessions: TabSet.tabbable(model.sessions),
-            tools: CenterTabStore.shared.tabs(for: workspaceID).map(\.id),
+            tools: CenterTabStore.shared.tabs(for: workspaceID).filter { $0.agentSessionID == nil }.map(\.id),
             stored: stripOrders[workspaceID] ?? []
         ) else { return }
 
