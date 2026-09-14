@@ -69,13 +69,22 @@ struct GitRepositoryAnswerTests {
 
     /// The real refusal, from the real git, through the path `WorkspaceManager.addRepository` takes.
     /// `GIT_TEST_ASSUME_DIFFERENT_OWNER` is git's own hook for producing it without a second account.
+    ///
+    /// Without the machine's own git config, because a `safe.directory = *` in it switches the
+    /// check off and git answers that the folder is a repository. This passed on a Mac and failed on
+    /// every push to main with exactly that answer, and pointing `GIT_CONFIG_GLOBAL` at a file
+    /// holding the line reproduces it locally.
     @Test("git's own ownership refusal is read as one", .tags(.git), .scratchDirectory)
     func realOwnershipRefusal() async throws {
         let repo = try await TempRepo()
         defer { repo.cleanUp() }
 
         #expect(await Git.repositoryAnswer(repo.path) == .repository)
-        let refused = await Git.repositoryAnswer(repo.path, environment: ["GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"])
+        let refused = await Git.repositoryAnswer(repo.path, environment: [
+            "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        ])
         guard case .problem(.unsafeOwnership(let trusted)) = refused else {
             Issue.record("expected an ownership refusal, got \(refused)")
             return
