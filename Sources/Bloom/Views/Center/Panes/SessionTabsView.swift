@@ -46,6 +46,8 @@ struct SessionTabsView: View {
     /// capsule between tabs instead of fading one out and another in. See `TabItemView`, which
     /// hangs its `matchedGeometryEffect` off this.
     @Namespace private var selection
+    /// Which tab the pointer is over, read by the dividers alone. See `TabStripHover`.
+    @State private var hover = TabStripHover()
 
     /// The space the tabs are measured in and the pointer is reported in. It is the row of tabs
     /// itself, so it scrolls with them and the two sets of numbers cannot drift apart.
@@ -79,10 +81,10 @@ struct SessionTabsView: View {
         // This is `SidebarRepoGroup`'s bug and `SidebarRepoGroup`'s fix: derive it once, pass it
         // as a parameter, and let the helpers say what they need rather than reach for it.
         let entries = stored
-        // Read once, and only whether a drag is on at all, which changes twice per drag. Where the
-        // carried tab has got to is read by each tab's own `StripDragTracking`, so the pointer
-        // moving does not rebuild this body. See `TabCarry`.
-        let isCarrying = carry.lift != nil
+        // Nothing about the drag is read here. Where the carried tab has got to is read by each
+        // tab's own `StripDragTracking` and by each `StripDivider`, so the pointer moving does not
+        // rebuild this body. See `TabCarry`.
+        //
         // **One** answer, where `CenterPaneStore.isShowing` gave the strip as many marks as the
         // column had panes: a tab owns the panes now, so being in a tab is a single fact about the
         // workspace again.
@@ -100,9 +102,9 @@ struct SessionTabsView: View {
                 // Stable identities let conversations and tools move through the same row.
                 ForEach(Array(entries.enumerated()), id: \.element) { index, entry in
                     if index > 0 {
-                        TabStripSeparator(
-                            isHidden: isCarrying
-                                || !isSeparated(at: index, in: entries, selected: selected)
+                        StripDivider(
+                            slot: index - 1, entries: entries, selected: selected,
+                            carry: carry, hover: hover
                         )
                     }
 
@@ -155,22 +157,6 @@ struct SessionTabsView: View {
         tabs.tabs(for: model.workspace.id).first { $0.id == id }
     }
 
-    /// Whether the rule between two tabs is drawn.
-    ///
-    /// Hidden against the selected tab on either side, whose own fill is its edge. One rule for the
-    /// whole strip now that the strip is one list: the pair of cases this used to need, "the last
-    /// conversation before the first tool" and "the tool before this one", were the seam between
-    /// two runs and there is no seam any more.
-    ///
-    /// Handed the strip and the selection rather than reaching for either. It is asked once per
-    /// gap, so a version that derived the strip itself derived it twice per gap.
-    private func isSeparated(
-        at index: Int, in entries: [PaneContent], selected: PaneContent?
-    ) -> Bool {
-        guard index > 0 else { return false }
-        return entries[index - 1] != selected && entries[index] != selected
-    }
-
     // MARK: - Tabs
 
     private func sessionTab(
@@ -200,6 +186,7 @@ struct SessionTabsView: View {
             onSplitDown: splitAction(.chat(session.id), axis: .vertical, selected: selected),
             onMoveLeft: moveAction(content, by: -1, in: entries),
             onMoveRight: moveAction(content, by: 1, in: entries),
+            onHover: { hover.set(content, isHovered: $0) },
             namespace: selection
         )
         .modifier(tracking(
@@ -257,6 +244,7 @@ struct SessionTabsView: View {
             onSplitDown: splitAction(.tool(tab.id), axis: .vertical, selected: selected),
             onMoveLeft: moveAction(content, by: -1, in: entries),
             onMoveRight: moveAction(content, by: 1, in: entries),
+            onHover: { hover.set(content, isHovered: $0) },
             namespace: selection
         )
         .modifier(tracking(

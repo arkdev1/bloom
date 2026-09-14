@@ -158,8 +158,8 @@ struct TabStrip<Leading: View, Tabs: View, Append: View, Trailing: View>: View {
 extension TabStrip {
     private var itemWidth: CGFloat {
         guard tabCount > 0 else { return TabItemView.minimumWidth }
-        let separators = CGFloat(tabCount - 1) * Metrics.hairline
-        return max(TabItemView.minimumWidth, (width - separators) / CGFloat(tabCount))
+        // No share for the separators: they take no width. See `TabStripSeparator`.
+        return max(TabItemView.minimumWidth, width / CGFloat(tabCount))
     }
 
     @ViewBuilder
@@ -264,15 +264,25 @@ struct TabStripOverflow: Equatable {
 /// darker than the strip it is on, and the separator colour at full strength was nearly twice that.
 /// A rule between two tabs is there to be found, not to be seen.
 ///
-/// It is kept in the layout when it is not wanted rather than removed, because a rule that came and
-/// went as the selection moved would shift every tab beside it by half a point.
+/// **No width in the layout.** The rule used to be a one point view between two tabs, and that
+/// point belonged to neither of them: a click on it selected nothing, and a hover highlight stopped
+/// short of it, so Safari's clean capsule over the place the rule had been came out as a capsule
+/// with a line of dead strip beside it. The rule is now drawn centred on the boundary where two
+/// tabs meet, and the boundary is inside one tab or the other. Hidden rather than removed still,
+/// so the row's structure does not change as the selection moves.
 struct TabStripSeparator: View {
     var isHidden = false
 
     var body: some View {
-        Rectangle()
-            .fill(Palette.border.opacity(0.7))
-            .frame(width: Metrics.hairline, height: Metrics.barHeight / 2)
+        Color.clear
+            .frame(width: 0, height: Metrics.barHeight / 2)
+            .overlay {
+                Rectangle()
+                    .fill(Palette.border.opacity(0.7))
+                    .frame(width: Metrics.hairline)
+            }
             .opacity(isHidden ? 0 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }

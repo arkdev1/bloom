@@ -29,6 +29,7 @@ struct SessionTabView: View {
     var onSplitDown: (@MainActor () -> Void)?
     var onMoveLeft: (@MainActor () -> Void)?
     var onMoveRight: (@MainActor () -> Void)?
+    var onHover: (@MainActor (Bool) -> Void)?
     var namespace: Namespace.ID
 
     var body: some View {
@@ -51,6 +52,7 @@ struct SessionTabView: View {
             onSplitDown: onSplitDown,
             onMoveLeft: onMoveLeft,
             onMoveRight: onMoveRight,
+            onHover: onHover,
             namespace: namespace
         )
     }

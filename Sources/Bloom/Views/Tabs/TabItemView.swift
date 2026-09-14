@@ -56,6 +56,10 @@ struct TabItemView: View {
     /// the strip the tab cannot move past and in strips that cannot be reordered at all.
     var onMoveLeft: (@MainActor () -> Void)?
     var onMoveRight: (@MainActor () -> Void)?
+    /// The pointer arriving on or leaving this tab, for a strip that draws something beside the
+    /// tab in answer: the centre strip hides the rules either side of a hovered tab. Called in the
+    /// same transaction the tab's own highlight changes in, so the two fade together.
+    var onHover: (@MainActor (Bool) -> Void)?
     /// The strip's namespace, so the selected tab's fill is one view that moves rather than one
     /// that is destroyed here and built again over there. Without it the highlight blinks from
     /// tab to tab, and a highlight that blinks is the single clearest tell that a tab strip was
@@ -83,6 +87,7 @@ struct TabItemView: View {
     @Environment(\.tabItemWidth) private var tabItemWidth
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isHovered = false
     /// The pointer on the close cross itself rather than on the tab around it.
@@ -167,9 +172,15 @@ struct TabItemView: View {
         // The cross is only hit testable while the tab is hovered, so it cannot be pointed at once
         // this goes false. Cleared here as well rather than trusting the cross's own exit event to
         // arrive first, because a flag stuck true is a tab that stops selecting altogether.
-        .onHover {
-            isHovered = $0
-            if !$0 { isCloseHovered = false }
+        .onHover { hovering in
+            if !hovering { isCloseHovered = false }
+            // At the hover speed, and none under Reduce Motion. The strip hides the rules beside
+            // this tab inside the same transaction, which is what keeps a rule from lingering a
+            // tenth of a second inside a capsule that has already arrived.
+            withAnimation(reduceMotion ? nil : Motion.hover) {
+                isHovered = hovering
+                onHover?(hovering)
+            }
         }
         .help(title)
         .accessibilityElement(children: .contain)
