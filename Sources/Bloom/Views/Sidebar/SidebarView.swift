@@ -6,8 +6,9 @@ import BloomCore
 ///
 /// A real `List` with `.listStyle(.sidebar)`, not a `ScrollView` over a `LazyVStack`. The list
 /// brings the source list treatment that was previously hand-drawn and always slightly wrong:
-/// AppKit selection (accent when the window is key, grey when it is not), the standard row
-/// insets, and keyboard navigation between rows.
+/// the standard row insets and keyboard navigation between rows. Not the selection's drawing,
+/// which is the one thing taken back from it: AppKit's accent fill is what turned the selected
+/// workspace blue on switching back to Bloom. See `SidebarSelectionFill`.
 ///
 /// The projects are NOT sections of it. They were, and a section is what a source list normally
 /// wants, but `onMove` on a `ForEach` of `Section`s moves nothing: a section header is not a row
@@ -44,6 +45,11 @@ struct SidebarView: View {
     /// What the list itself thinks is selected. See the `onChange` pair below for why this is not
     /// bound straight to the model.
     @State private var listSelection: SidebarSelection?
+    /// Whether the list's table is the first responder, and whether its window is key. Only the
+    /// edge on the selection reads these; the fill is the same either way. See
+    /// `SidebarKeyboardFocus`.
+    @State private var listHasKeyboard = false
+    @State private var windowIsKey = false
     @State private var archivePresentation = SidebarArchivePresentation()
 
     /// The grouped, filtered, sorted list the rows are drawn from.
@@ -156,6 +162,7 @@ struct SidebarView: View {
                             // worktree it shares, not because of an order anybody chose.
                             .moveDisabled(true)
                             .tag(SidebarSelection.crew(workspaceID, member.id))
+                            .sidebarSelection(selectionStyle(for: .crew(workspaceID, member.id)))
                     case .subagent(let subagent, let workspaceID, _):
                         SubagentSidebarRow(row: subagent)
                             // A row with no file to open refuses selection rather than taking it and
@@ -165,6 +172,9 @@ struct SidebarView: View {
                             // own: it is where it is because of what spawned it.
                             .moveDisabled(true)
                             .tag(SidebarSelection.subagent(workspaceID, subagent.id))
+                            .sidebarSelection(
+                                selectionStyle(for: .subagent(workspaceID, subagent.id))
+                            )
                     case .pending(let pending):
                         // A workspace that does not exist yet, so there is nothing to select, nothing
                         // to open and nothing to write a `sort_order` onto. Refused here and again in
@@ -194,7 +204,8 @@ struct SidebarView: View {
                 SidebarProjectsHeader(onStartProject: startProject)
             }
         }
-        // The native list owns selection drawing, row height and keyboard navigation.
+        // The native list owns row height, keyboard navigation and which row is selected. How the
+        // selected row is drawn is `SidebarSelectionFill`'s, on each row, for the reason given there.
         //
         // Row height: 32 points, where `Metrics.rowHeight` is 28 and the reference render is 28
         // as well. It is not ours to set. `listRowInsets`, an explicit `frame(height:)` on the
@@ -325,6 +336,13 @@ struct SidebarView: View {
         .background {
             SidebarSelectionActivation(selection: listSelection, active: app.selection) { target, previous in
                 commitSelection(target, replacing: previous)
+            }
+            .allowsHitTesting(false)
+        }
+        .background {
+            SidebarKeyboardFocus { hasKeyboard, isKey in
+                listHasKeyboard = hasKeyboard
+                windowIsKey = isKey
             }
             .allowsHitTesting(false)
         }
@@ -584,6 +602,18 @@ struct SidebarView: View {
             archivePresentation: $archivePresentation
         )
         .tag(target)
+        .sidebarSelection(selectionStyle(for: target))
+    }
+
+    /// How `target`'s row says it is selected. Keyed to `listSelection`, the list's own answer,
+    /// rather than `app.selection`, which lags it by a frame on purpose (see
+    /// `SidebarSelectionActivation`): the fill has to land in the frame the click did.
+    private func selectionStyle(for target: SidebarSelection) -> SidebarSelectionStyle {
+        .resolve(
+            isSelected: listSelection == target,
+            listHasKeyboard: listHasKeyboard,
+            windowIsKey: windowIsKey
+        )
     }
 
     /// The root of the pane, as a row of the list. There used to be three of these.
@@ -593,6 +623,7 @@ struct SidebarView: View {
     private func navRow(_ target: SidebarSelection, title: String, icon: String) -> some View {
         SidebarNavRow(title: title, icon: icon)
             .tag(target)
+            .sidebarSelection(selectionStyle(for: target))
     }
 
     /// Home's row is a name. This one also says what the conversation is doing, because it is the
@@ -604,6 +635,7 @@ struct SidebarView: View {
     private var askRow: some View {
         SidebarNavRow(title: AskConversation.title, icon: PaneGlyph.chat, status: app.askStatus)
             .tag(SidebarSelection.ask)
+            .sidebarSelection(selectionStyle(for: .ask))
     }
 
     // MARK: - Empty
