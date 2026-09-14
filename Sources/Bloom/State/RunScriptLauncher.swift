@@ -35,6 +35,15 @@ final class RunScriptLauncher {
     /// same script. By signature rather than a flag; see `RunScriptAutostart.signature(of:)`.
     @ObservationIgnored private var settled: [WorkspaceID: [String]] = [:]
     @ObservationIgnored private var settling: Set<WorkspaceID> = []
+    /// Workspaces whose settings changed again while they were being settled, so the change that
+    /// arrived mid-settle is settled once the first one finishes rather than dropped.
+    @ObservationIgnored private var resettle: Set<WorkspaceID> = []
+    /// Every autostart command started in each workspace this launch, one
+    /// `RunScriptAutostart.entry(of:)` each. A file that goes from one set to another and back
+    /// would otherwise start the first set a second time, and a seed somebody marked to autostart
+    /// would wipe their database again on an edit to an unrelated line. Once per command per launch
+    /// is what autostart promised before settings could change under an open workspace.
+    @ObservationIgnored private var autostarted: [WorkspaceID: Set<String>] = [:]
 
     private init() {}
 
@@ -167,10 +176,21 @@ final class RunScriptLauncher {
     /// and the setup run finishing asks again.
     func considerAutostart(in model: WorkspaceModel) async {
         let workspaceID = model.workspace.id
-        guard !settling.contains(workspaceID),
-              let repo = model.repo, let store = model.store else { return }
+        guard !settling.contains(workspaceID) else {
+            resettle.insert(workspaceID)
+            return
+        }
         settling.insert(workspaceID)
         defer { settling.remove(workspaceID) }
+        repeat {
+            resettle.remove(workspaceID)
+            await settleAutostart(in: model)
+        } while resettle.contains(workspaceID)
+    }
+
+    private func settleAutostart(in model: WorkspaceModel) async {
+        let workspaceID = model.workspace.id
+        guard let repo = model.repo, let store = model.store else { return }
 
         await model.reloadSettings()
         let settings = model.settings
@@ -192,7 +212,7 @@ final class RunScriptLauncher {
             settled[workspaceID] = signature
         case .run(let scripts):
             settled[workspaceID] = signature
-            for script in scripts { await start(script, in: model, bringForward: false) }
+            await autostart(scripts, in: model)
         case .ask:
             guard !snoozed.contains(repo.id) else { return }
             guard let notice = RunScriptAutostartNotice.make(project: repo.name, decision: decision)
@@ -231,7 +251,18 @@ final class RunScriptLauncher {
             )
             return
         }
-        for script in notice.scripts { await start(script, in: model, bringForward: false) }
+        await autostart(notice.scripts, in: model)
+    }
+
+    /// Starts, in the background, the scripts among these whose exact command has not been
+    /// autostarted in this workspace yet this launch. See `autostarted`.
+    private func autostart(_ scripts: [RunScript], in model: WorkspaceModel) async {
+        let workspaceID = model.workspace.id
+        for script in scripts {
+            let entry = RunScriptAutostart.entry(of: script)
+            guard autostarted[workspaceID, default: []].insert(entry).inserted else { continue }
+            await start(script, in: model, bringForward: false)
+        }
     }
 
     /// A question is about a project, so answering it in one workspace answers it in every other

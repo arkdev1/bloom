@@ -127,7 +127,12 @@ public enum RunScriptAutostart: Sendable, Hashable {
     /// The id and the exact command of each candidate, in order. A name or an icon changing is not
     /// a reason to start anything.
     public static func signature(of scripts: [RunScript]) -> [String] {
-        candidates(in: scripts).map { "\($0.id)\u{1F}\($0.command)" }
+        candidates(in: scripts).map(entry(of:))
+    }
+
+    /// One script's part of a signature: its id and exact command.
+    public static func entry(of script: RunScript) -> String {
+        "\(script.id)\u{1F}\(script.command)"
     }
 
     private static func candidates(in scripts: [RunScript]) -> [RunScript] {
