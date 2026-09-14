@@ -78,11 +78,10 @@ struct TurnMinimapView: View {
                     .alignmentGuide(.top) { dimensions in
                         dimensions.height / 2 - map.centre(of: hovered)
                     }
-                    // Clear of the strip's own width rather than of its trailing edge, because the marks
-                    // are drawn against that edge and the card would sit over them.
-                    .alignmentGuide(.trailing) { dimensions in
-                        dimensions.width + TurnMinimap.width
-                    }
+                    // An alignment guide propagates into the enclosing trailing-aligned overlay
+                    // and can shift the strip under its own card. Offset only the card, leaving
+                    // the marks and their pointer target in place, with a visible gap between them.
+                    .offset(x: -(TurnMinimap.width + Metrics.spacingWide))
                     .transition(.opacity)
             }
         }
@@ -98,22 +97,25 @@ struct TurnMinimapView: View {
     }
 
     private func card(for index: Int) -> some View {
-        MenuPanel {
-            VStack(alignment: .leading, spacing: Metrics.spacingSmall) {
-                Text(turns[index].summary)
-                    .font(Typo.label)
-                    .foregroundStyle(Palette.textPrimary)
-                    .lineLimit(3)
-                    .truncationMode(.tail)
-                Text("\(index + 1) of \(turns.count)")
-                    .font(Typo.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .monospacedDigit()
-            }
-            .padding(.horizontal, Metrics.inset)
-            .padding(.vertical, Metrics.spacingWide)
-            .frame(width: Self.cardWidth, alignment: .leading)
+        VStack(alignment: .leading, spacing: Metrics.spacingWide) {
+            Text(turns[index].summary)
+                .font(Typo.label)
+                .foregroundStyle(Palette.textPrimary)
+                .lineLimit(3)
+                .truncationMode(.tail)
+            Text("\(index + 1) of \(turns.count)")
+                .font(Typo.micro)
+                .foregroundStyle(Palette.textSecondary)
+                .monospacedDigit()
         }
+        .padding(Metrics.inset)
+        .frame(width: Self.cardWidth, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Metrics.corner))
+        .overlay {
+            RoundedRectangle(cornerRadius: Metrics.corner)
+                .strokeBorder(Palette.border, lineWidth: Metrics.outline)
+        }
+        .elevation(.resting)
         .fixedSize(horizontal: true, vertical: true)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
