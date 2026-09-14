@@ -16,7 +16,7 @@ struct SideConversationView: View {
     var tailX: CGFloat?
     @State private var room = ComposerRoom()
 
-    /// The composer's own radius rather than `Metrics.corner`. The card sits directly above the
+    /// The composer's own radius rather than `Metrics.corner`. The card hangs over the top of the
     /// composer, and a system popover on macOS 26 is drawn far rounder than a six point card, so
     /// the one existing large radius in the same column is the one that makes the two read as a
     /// family.

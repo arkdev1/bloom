@@ -128,7 +128,6 @@ struct ChatPaneView: View {
                     let placement = SideConversationPlacement(
                         pane: geometry.size,
                         anchor: anchor.map { geometry[$0] },
-                        clearance: room.clearance,
                         cornerRadius: SideConversationView.corner
                     )
                     SideConversationView(parent: transcript, state: state, model: model, tailX: placement.tailX)
