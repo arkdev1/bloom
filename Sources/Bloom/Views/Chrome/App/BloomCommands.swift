@@ -680,7 +680,7 @@ struct BloomCommands: Commands {
     /// This used to open a new tab every time, on the argument that two copies of a dev server is
     /// a thing somebody does on purpose. In practice it was the thing nobody meant: the second copy
     /// fights the first for its port, and the error it prints reads as a broken app. So the menu
-    /// goes through the same launcher as the strip's `+`, which is `RunScriptPick`, and a stopped
+    /// goes through the same launcher as the title bar's `+`, which is `RunScriptPick`, and a stopped
     /// script keeps its last output above the new run rather than in a tab of its own.
     private func run(_ script: RunScript, in workspace: WorkspaceModel) {
         RunScriptLauncher.shared.pick(script, in: workspace)
@@ -698,7 +698,7 @@ struct BloomCommands: Commands {
     /// never the point.
     ///
     /// So the direction and what goes in it are one gesture here too, drawn from the same
-    /// `PaneKind` the pane's menu and the strip's `+` draw theirs from, and doing the same thing:
+    /// `PaneKind` the pane's menu and the title bar's `+` draw theirs from, and doing the same thing:
     /// `NewPane` opens a new one of that kind and the half is filled with it.
     ///
     /// **What that changes about the keystroke, said out loud.** `Cmd+\` and `Shift+Cmd+\` now

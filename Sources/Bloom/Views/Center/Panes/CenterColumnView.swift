@@ -11,13 +11,61 @@ import BloomCore
 struct CenterColumnView: View {
     @Bindable var model: WorkspaceModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The tab whose name field is open in the strip. Here rather than in `SessionTabsView`
+    /// because opening one is also a reason to draw the strip. See `TabStripVisibility`.
+    @State private var renamingID: String?
+
+    private var store: WorkspaceTabsStore { .shared }
+
+    /// Whether the strip is drawn, which is Safari's rule plus a split. The reasoning, and the
+    /// exception for a single tab split into panes, is `TabStripVisibility`'s.
+    private var isStripShown: Bool {
+        let entries = store.entries(in: model)
+        let paneCount = store.selectedTab(in: model, entries: entries)
+            .map { store.layout(of: $0).paneCount } ?? 1
+        return TabStripVisibility.isShown(
+            tabCount: entries.count, paneCount: paneCount, isRenaming: renamingID != nil
+        )
+    }
+
     var body: some View {
+        let isStripShown = self.isStripShown
         VStack(spacing: 0) {
-            SessionTabsView(model: model)
+            if isStripShown {
+                SessionTabsView(model: model, renamingID: $renamingID)
+                    // A fade rather than a slide. The strip sits hard under the title bar, and
+                    // sliding it in from the top edge draws it over the title bar for the length
+                    // of the animation; the panes below close or open the gap either way.
+                    .transition(.opacity)
+            }
             WorkspaceSettingsNotices(model: model)
             CenterPanesView(model: model)
         }
+        // On the column rather than on the strip, so the panes moving up into the space and the
+        // strip fading out are one movement. Keyed on the answer alone: a tab being renamed or a
+        // third tab arriving changes nothing here and must not animate the column.
+        .animation(reduceMotion ? nil : Motion.pane, value: isStripShown)
         .background(Palette.windowBackground)
+        // Rename Tab from the File menu. It renames the selected tab, which is the tab the menu
+        // item was greyed against, and on a workspace with one tab that is a strip not drawn yet:
+        // setting this is what draws it, with the field open.
+        .onReceive(NotificationCenter.default.publisher(for: .bloomRenameTab)) { _ in
+            guard let selected = store.selectedTab(in: model) else { return }
+            // `PaneContent.id` is the same string the strip files an open field under, for both
+            // kinds, which is what lets one notification carry no id of its own.
+            renamingID = selected.id
+        }
+        // A field left open in one workspace is not one to carry into the next.
+        .onChange(of: model.workspace.id) { _, _ in renamingID = nil }
+        .task(id: model.workspace.id) {
+            // The icons this Mac has already seen, read back once per launch. Here rather than at
+            // startup because this is what needs them: a workspace reopening on a browser tab
+            // should draw its icon on the first frame instead of asking the page for something
+            // that is already on disk. Its own task, so it does not hold up the one below.
+            await BrowserFaviconStore.shared.warm()
+        }
         .task(id: model.workspace.id) {
             openStartingPane()
             await model.onAppear()
@@ -63,7 +111,7 @@ struct CenterColumnView: View {
     /// exactly once, on the first open, and never forced in front of an arrangement the user has
     /// since made for themselves.
     ///
-    /// Through `NewPane`, which is the door the strip's `+` and every split menu already use, so
+    /// Through `NewPane`, which is the door the title bar's `+` and every split menu already use, so
     /// a tab a workspace is born on and a tab somebody opens a second later are the same tab.
     private func openStartingPane() {
         let workspaceID = model.workspace.id
@@ -73,7 +121,7 @@ struct CenterColumnView: View {
         guard let opening = WorkspaceStartMode.consumeOpeningTab(workspaceID: workspaceID) else {
             return
         }
-        // No address for a browser, where the strip's `+` passes the workspace's own dev server.
+        // No address for a browser, where the title bar's `+` passes the workspace's own dev server.
         // The worktree was cut seconds ago and its setup script may still be running, so the port
         // is answering nothing: an opening tab on a refused connection would be an error page as
         // the first thing a new workspace shows. The address field is where somebody says.

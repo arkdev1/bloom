@@ -8,16 +8,19 @@ import BloomCore
 /// share the worktree too, and share the strip for the same reason, so the thing you look at next
 /// is always one click along the same row.
 ///
-/// The strip used to disappear while a workspace had a single session, on the grounds that a lone
-/// tab repeats the workspace name already in the toolbar. It cannot any more: the `+` that opens a
-/// terminal or a browser is part of the strip, and a control nobody can reach is not a control.
+/// Whether the strip is drawn at all is `CenterColumnView`'s to decide, by `TabStripVisibility`:
+/// a workspace with one tab showing one pane has no strip, the way a Safari window with one tab
+/// has no tab bar. The `+` that used to end this row is `NewTabMenu`, in the title bar, which is
+/// what lets the row go.
 struct SessionTabsView: View {
     @Bindable var model: WorkspaceModel
+    /// The tab whose name field is open. Owned by the column rather than by this view, because
+    /// Rename Tab has to be able to open a field on a strip that is not drawn yet: the column
+    /// hears the request, sets this, and the strip appears with the field already open.
+    @Binding var renamingID: String?
 
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @State private var renamingID: String?
     /// A tab being dragged along the strip, and the order the strip is showing because of it.
     ///
     /// The tabs move out from under the pointer while the drag is happening, so letting go changes
@@ -93,8 +96,8 @@ struct SessionTabsView: View {
         // `entries` is not a stored list: it maps the sessions, reads the tool tab list, works out
         // what the tabs have absorbed and lays the user's own order over the result. It used to be
         // asked for again by the separator between every pair of tabs (twice each), by the scroll
-        // target, by the rule before the `+`, by every split menu, and once more inside the store
-        // on the way to the selection. That is about six full
+        // target, by every split menu, and once more inside the store on the way to the
+        // selection. That is about six full
         // derivations per tab per pass for a list that cannot change while the pass is running.
         //
         // This is `SidebarRepoGroup`'s bug and `SidebarRepoGroup`'s fix: derive it once, pass it
@@ -162,28 +165,13 @@ struct SessionTabsView: View {
             // tab are the strip relaying out, not an event of their own.
             .animation(reduceMotion ? nil : Motion.pane, value: drag?.order)
         } append: {
-            newTabMenu
         } trailing: {}
-        // The list, and nothing else. Reconciling used to be here too, right after this line, and
-        // it was wrong by exactly one await: this body has no suspension point in it, so it ran
-        // while `WorkspaceModel` was still on the `Store` actor and judged real tool tabs against
-        // an empty session list. It is `CenterColumnView`'s task now, after `onAppear`.
-        // Rename Tab from the File menu, which reaches the one field this strip owns. It renames
-        // the selected tab, which is the tab the menu item was greyed against.
-        .onReceive(NotificationCenter.default.publisher(for: .bloomRenameTab)) { _ in
-            guard let selected = store.selectedTab(in: model) else { return }
-            // `PaneContent.id` is the same string this strip files an open field under, for both
-            // kinds, which is what lets one notification carry no id of its own.
-            renamingID = selected.id
-        }
-        .task(id: model.workspace.id) {
-            tabs.load(workspaceID: model.workspace.id)
-            // The icons this Mac has already seen, read back once per launch. Here rather than at
-            // startup because this is what needs them: a workspace reopening on a browser tab
-            // should draw its icon on the first frame instead of asking the page for something
-            // that is already on disk.
-            await BrowserFaviconStore.shared.warm()
-        }
+        // The list, and nothing else. Reconciling used to be here too, and it was wrong by exactly
+        // one await: this body has no suspension point in it, so it ran while `WorkspaceModel` was
+        // still on the `Store` actor and judged real tool tabs against an empty session list. It is
+        // `CenterColumnView`'s task now, after `onAppear`. So are hearing Rename Tab and loading
+        // the stored tabs, because this view is not in the hierarchy while the strip is hidden and
+        // neither may wait for it to be.
     }
 
     /// The centre column opens onto the reading ground, which settles both what a selected tab is
@@ -339,112 +327,6 @@ struct SessionTabsView: View {
         }
     }
 
-    /// One control for all four kinds, because they differ in what they open and in nothing else.
-    ///
-    /// The shortcuts are drawn here and fired from the File menu. A `Menu` in a view becomes an
-    /// `NSMenu` hanging off a button, and key equivalents are only offered to the menu bar and to
-    /// the view hierarchy, neither of which that menu is in, so what is written here is a label.
-    /// This used to be backed by an invisible `ZStack` of buttons that registered the same keys in
-    /// the view hierarchy; the menu bar carries them now, and it has to be one or the other. A view
-    /// hierarchy button and a menu item bound to the same key are not a tie: the button wins and
-    /// the item never fires, measured.
-    ///
-    /// The first three take their name and their glyph from `PaneKind` rather than spelling them
-    /// out, because the pane's split submenus offer the same three and the two lists have to keep
-    /// saying the same words.
-    private var newTabMenu: some View {
-        Menu {
-            Button(PaneKind.chat.title, systemImage: PaneKind.chat.symbol, action: newChat)
-                .keyboardShortcut("t", modifiers: .command)
-            Button(PaneKind.terminal.title, systemImage: PaneKind.terminal.symbol, action: newTerminal)
-                .keyboardShortcut("t", modifiers: [.command, .shift])
-            Button(PaneKind.browser.title, systemImage: PaneKind.browser.symbol, action: newBrowser)
-                .keyboardShortcut("b", modifiers: [.command, .shift])
-            Divider()
-            // **Never disabled, and it used to be**, on the argument that an empty review has
-            // nothing to show. It has: the pane says what the worktree is being compared against
-            // and that nothing differs from it yet, which is an answer, and it is the answer
-            // somebody who picked this row was asking for. Greyed out it read as a broken menu
-            // item, which is how it was reported. The File menu's own Show Changes has been
-            // enabled on any workspace all along, and the two saying different things about the
-            // same tab was the other half of the confusion.
-            Button("Changes", systemImage: "doc.text") { FileReview.open(in: model) }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-            // An empty note is exactly what somebody opening this is about to fix.
-            Button(CenterTab.notesTitle, systemImage: "note.text") { WorkspaceNotes.open(in: model) }
-            runScriptItems
-        } label: {
-            Label("New tab", systemImage: "plus")
-                .labelStyle(.iconOnly)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.regular)
-        .buttonSizing(.flexible)
-        .frame(width: TabItemView.tabHeight, height: TabItemView.tabHeight)
-        .menuIndicator(.hidden)
-        .frame(width: Metrics.barHeight, height: Metrics.barHeight)
-        // Re-read on the way to the button, because a `Menu` has no moment of its own to do it
-        // in: its items are built before it opens. A run script added from a terminal inside
-        // Bloom changes no selection and brings no window forward, so without this it only reached
-        // the menu on the next switch. The read is coalesced and off the main actor, and the pointer
-        // takes longer to reach the button than the parse takes.
-        .onHover {
-            if $0 { model.refreshSettings() }
-        }
-        .help("New tab in this workspace")
-    }
-
-    /// The project's run scripts, under their own heading, in the order the file states them.
-    ///
-    /// Absent rather than an empty heading for a project with none, so the menu is exactly what it
-    /// was before run scripts had tabs. Each row's second line is the command, so what runs can be
-    /// read before it runs, and a script already going says Running instead, because picking it
-    /// shows its tab rather than starting a second copy. The words are `RunScriptMenuItem`.
-    @ViewBuilder
-    private var runScriptItems: some View {
-        let scripts = model.settings.runScripts
-        if !scripts.isEmpty {
-            let running = runningScripts()
-            Divider()
-            Section("Run Scripts") {
-                ForEach(scripts) { script in
-                    let item = RunScriptMenuItem.make(
-                        script: script,
-                        isRunning: running.contains(script.id),
-                        missingFile: missingFile(of: script)
-                    )
-                    Button {
-                        launcher.pick(script, in: model)
-                    } label: {
-                        // A label and then a second text, which a menu draws as the title with
-                        // its glyph and a subtitle under it.
-                        Label {
-                            Text(verbatim: item.title)
-                        } icon: {
-                            Image(systemName: RunScriptGlyph.symbol(for: script.icon))
-                        }
-                        Text(verbatim: item.subtitle)
-                    }
-                    .disabled(!item.isEnabled)
-                }
-            }
-        }
-    }
-
-    /// The ids of the run scripts with a tab whose command is going.
-    private func runningScripts() -> Set<String> {
-        Set(tabs.tabs(for: model.workspace.id).compactMap { tab in
-            launcher.isRunning(tab) ? tab.runScriptID : nil
-        })
-    }
-
-    private func missingFile(of script: RunScript) -> String? {
-        guard let file = model.settings.scriptFiles[.run(script.id)], file.isMissing else { return nil }
-        return file.path
-    }
-
     /// Whether this tab can be opened beside the one the user is in. The pair of menu items is
     /// dropped when it cannot, rather than shown greyed, which is what `TabItemView` does with
     /// them everywhere else.
@@ -493,26 +375,6 @@ struct SessionTabsView: View {
             }
         }
         store.split(tab: tab, pane: pane, axis: axis, showing: content)
-    }
-
-    /// All three go through `NewPane`, which is the same door the pane's split submenus use, so a
-    /// tab made from the `+` and a tab made by splitting are the same tab.
-    private func newChat() {
-        NewPane.open(.chat, in: model) { store.select($0, in: model) }
-    }
-
-    private func newTerminal() {
-        NewPane.open(.terminal, in: model) { store.select($0, in: model) }
-    }
-
-    /// The `+` opens a browser on the workspace's own dev server, where a split opens one on
-    /// nothing. That is not drift: this item is the one that means "look at what this workspace is
-    /// running", and it is the only route that knows where that is.
-    private func newBrowser() {
-        Task {
-            let address = await model.browserAddress()
-            NewPane.open(.browser, in: model, url: address) { store.select($0, in: model) }
-        }
     }
 
     // MARK: - Reordering

@@ -375,7 +375,7 @@ struct CenterPaneView: View {
     /// That is what "Opens with: Terminal" creates, and it is where its terminal tab lands when
     /// the shell in it ends: the tab closes like any other, and the pane behind it must not be a
     /// composer. Somebody who asked for a shell in this worktree is offered a shell in it. The
-    /// other three kinds of tab are one click up, in the `+` the strip carries.
+    /// other three kinds of tab are one click up, in the `+` in the title bar.
     private var noConversationState: some View {
         VStack(spacing: Metrics.spacingWide) {
             EmptyStateView(

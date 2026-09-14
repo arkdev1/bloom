@@ -28,6 +28,17 @@ struct BloomWindowToolbar: ToolbarContent {
 
         ToolbarSpacer(.flexible, placement: .navigation)
 
+        // First of the trailing group, so the inspector toggle keeps the window's edge the way
+        // the sidebar toggle keeps the other one. Only on a workspace: Home and Ask Bloom have no
+        // centre column to open a tab in, and a `+` that does nothing there is worse than none.
+        // `selectedModel` rather than `selectedWorkspace`, because the menu acts on the model and
+        // a model not prepared yet has nothing for it to act on.
+        if let workspace = app.selectedModel, app.selectedWorkspace != nil {
+            ToolbarItem(placement: .primaryAction) {
+                NewTabMenu(model: workspace)
+            }
+        }
+
         ToolbarItem(placement: .primaryAction) {
             Button("Search", systemImage: "magnifyingglass") {
                 SearchPanelModel.shared.open(app: app)
