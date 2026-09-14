@@ -46,9 +46,26 @@ enum InstalledApps {
         return cache
     }
 
+    /// Forgets both halves of the cache, so the next menu is built from a fresh scan.
+    ///
+    /// Called when the user edits their own additions in Settings. The age on the cache is there
+    /// for an application installed behind Bloom's back; an application added in Bloom's own
+    /// settings pane and then missing from the menu for up to a minute would read as the pane
+    /// not working.
+    static func invalidate() {
+        scannedAt = nil
+        defaultsScannedAt = nil
+        systemDefaults = [:]
+    }
+
+    /// The built-in catalogue and the user's own additions after it. See `OpenInCustomApps`.
+    private static var catalogue: [ExternalApp] {
+        EditorCatalog.catalogue(adding: OpenInCustomApps().apps)
+    }
+
     private static func scan() -> [DetectedApp] {
         defer { listings = [:] }
-        return EditorCatalog.known.compactMap { app in
+        return catalogue.compactMap { app in
             guard let url = locate(app) else { return nil }
             return DetectedApp(app: app, url: url, icon: icon(at: url))
         }
@@ -150,7 +167,7 @@ enum InstalledApps {
         var found: DetectedApp?
         if let url = NSWorkspace.shared.urlForApplication(toOpen: URL(fileURLWithPath: path)),
            let bundleID = Bundle(url: url)?.bundleIdentifier,
-           !EditorCatalog.isKnown(bundleID: bundleID) {
+           !EditorCatalog.isKnown(bundleID: bundleID, in: catalogue) {
             found = DetectedApp(
                 app: ExternalApp(bundleID: bundleID, name: name(of: url), targets: .file),
                 url: url,
@@ -171,7 +188,7 @@ enum InstalledApps {
     }
 
     /// What Finder calls it, which is the name the user knows and is localised for them.
-    private static func name(of url: URL) -> String {
+    static func name(of url: URL) -> String {
         let display = FileManager.default.displayName(atPath: url.path)
         return display.hasSuffix(".app") ? String(display.dropLast(4)) : display
     }
