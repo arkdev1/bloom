@@ -127,15 +127,16 @@ struct WindowTitleControl: View {
         // `WindowTitleText` rather than the workspace's name, so a labelled build keeps its mark.
         Text(WindowTitleText.shared.text)
             .font(Typo.heading)
+            .foregroundStyle(Palette.textPrimary)
             .lineLimit(1)
             .truncationMode(.tail)
-            // With no tab strip the title is the name of the one tab there is, so it is what
-            // shimmers while that tab works, exactly as a tab's name does with a strip. The whole
-            // title, a build's "[DEV] " included, because that is the text on screen.
-            .busyShimmer(isBusy, ink: Palette.textPrimary)
     }
 
     /// Whether the column showing this selection has a turn running and no strip to say so.
+    ///
+    /// Drawn along the column's top edge (`ColumnBusySignal`), which is decoration and hidden, so
+    /// the title is where VoiceOver hears it: a busy tab says "Running" itself, and with no strip
+    /// the title is the name of the one tab there is.
     private var isBusy: Bool {
         WindowTitleText.shared.busySelection == app.selection
     }

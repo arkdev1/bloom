@@ -10,9 +10,9 @@ import BloomCore
 /// that is the whole reason this type exists. The rule that closed off the tab strip read it too,
 /// and is only drawn in galleries now (`ActivityRuleFigure`).
 ///
-/// A busy tab's name and the window title are not on this clock. They shimmer through a SwiftUI
-/// timeline at a period the owner chose, phased off absolute time so they keep step with each
-/// other; `BusyShimmer` says why that is not this.
+/// A busy tab's sweep and the column's are not on this clock. They cross in the owner's chosen 1.6
+/// seconds, which is no multiple of `BusyDot.period`, and keep step with each other off their own
+/// epoch; `BusySweepView` says so. They are layers built on `BusyPulseLayerView` all the same.
 ///
 /// An animation begins when the view that carries it is committed. Five agents started at five
 /// different moments therefore give five row figures at five different phases, which is not a

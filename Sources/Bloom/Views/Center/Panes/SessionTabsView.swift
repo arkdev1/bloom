@@ -22,8 +22,8 @@ struct SessionTabsView: View {
     /// The tab being carried, if any. Owned by the column, because the column draws where a tab
     /// taken out of the strip would land. See `TabCarry`.
     var carry: TabCarry
-    /// Which tabs' names shimmer. The column's to resolve, because the window title carries the
-    /// other half of the same answer when this strip is not drawn.
+    /// Which tabs sweep. The column's to resolve, because the column's top edge carries the other
+    /// half of the same answer when this strip is not drawn.
     var busy: BusySignalPlacement<PaneContent>
     /// Which part of which pane a tab carried to a point in `CenterColumnView.space` would land in,
     /// or nil for anywhere that would not take it. The column's to answer, because the panes are
@@ -107,7 +107,7 @@ struct SessionTabsView: View {
                     if index > 0 {
                         StripDivider(
                             slot: index - 1, entries: entries, selected: selected,
-                            carry: carry, hover: hover
+                            carry: carry, hover: hover, busy: busy
                         )
                     }
 
@@ -218,7 +218,7 @@ struct SessionTabsView: View {
             title: tabs.displayTitle(of: tab, in: model),
             icon: icon(for: tab),
             isActive: selected == .tool(tab.id),
-            // A run script's tab shimmers the way a working conversation's does while its command
+            // A run script's tab sweeps the way a working conversation's does while its command
             // is going. An ordinary terminal never does: nothing polls it, and a shell somebody ran
             // `ls` in is not a thing anybody is waiting on. See `WorkspaceTabsStore.busySignal`.
             isRunning: busy.showsInTab(content),

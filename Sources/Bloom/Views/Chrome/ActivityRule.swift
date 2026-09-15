@@ -10,8 +10,9 @@ import BloomCore
 /// **Nowhere live.** It lit the rule under the centre column's tab strip, and then, once the strip
 /// stopped being drawn for a lone tab, the column's top edge and a short crest under each busy tab.
 /// The owner's report on those was that the tab's crest sat underneath the tab rather than being
-/// part of it, and that the top edge read as a hard blue line. The signal is a shimmer through the
-/// busy name now, a tab's or the window title's: see `BusyShimmer` and `BusySignalPlacement`.
+/// part of it, and that the top edge read as a hard blue line. A shimmer through the busy name came
+/// next and was too subtle. The signal is Safari's loading sweep now, through a busy tab or along
+/// the column's top edge with no track: see `BusySweep` and `BusySignalPlacement`.
 ///
 /// What is kept is the figure, because `ActivityRuleGallery` and `RunningColourGallery` still draw
 /// it and everything below was measured to get it there. The view that decided whether a turn was
@@ -96,8 +97,7 @@ import BloomCore
 /// per display frame. Measured on a 120Hz panel with five agents running, four interleaved passes:
 /// the rule and the sidebar's dots cost a median of 2.96 seconds of CPU every 15, where the same
 /// pair on layers cost 0.13 against a floor of 0.20 with the heartbeat off. Do not put a
-/// `repeatForever` back on this rule. `BusyShimmerModifier` is a SwiftUI timeline and says what
-/// it spends against this measurement.
+/// `repeatForever` back on this rule. `BusySweepView` is drawn on layers for the same reason.
 ///
 /// # The figure
 ///

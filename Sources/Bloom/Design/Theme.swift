@@ -391,8 +391,8 @@ enum Palette {
     /// percent of value and invisible: it measured 4.39 to 1 on the sunken surface, and the sunken
     /// surface is where a strip sits.
     static let warning = dynamic(PaletteInk.warning)
-    /// An agent mid turn: the sidebar's dot and the transcript's "Working" dot. A busy tab's name
-    /// and the window title shimmer in `busyShimmer` instead.
+    /// An agent mid turn: the sidebar's dot and the transcript's "Working" dot. A busy tab and a
+    /// busy column's top edge sweep in `accentFill` instead; see `BusySweep`.
     ///
     /// **A hue of its own, and it must never equal `positive`.** It was `accent`, which is what
     /// `positive` is too, and the report was that "a green busy indicator is easily being confused
@@ -433,19 +433,18 @@ enum Palette {
         light: PaletteInk.running.light, dark: PaletteInk.running.dark
     )
 
-    /// The light that passes through a busy name, a tab's or the window title's. See `BusyShimmer`.
-    ///
-    /// A lighter house blue, which is what the owner chose off a mockup, and **not the mockup's light
-    /// member**. `#7FC3DA` measured 1.78 to 1 on the strip's track, so at the band's peak the glyphs
-    /// under it all but went. `#2F8AA8` is `accentFill` lifted about a tenth towards white, the
-    /// lightest step up that ramp that still holds the non-text floor on the worst ground a name
-    /// sits on, the strip under the pointer's hover wash (3.29; 3.60 on the bare strip, 3.95 on the
-    /// selected capsule). Dark keeps the mockup's `#6CC6E6`, 7.1 to 9.1 on those grounds.
-    ///
-    /// Not `running`, which is the sidebar's dot and a different blue on purpose, and not
-    /// `accentFill` itself, which is a fill and too dark to read as light in either appearance.
-    /// `PaletteContrastTests.theShimmerReads` holds all of it.
-    static let busyShimmer = dynamic(PaletteInk.busyShimmer)
+    /// The house fill as an `NSColor`, for `BusySweepView`'s layers. See `accentNSColor`.
+    static let accentFillNSColor = dynamicNSColor(PaletteInk.accentFill)
+
+    /// The faint capsule under a busy tab that is not selected, for the sweep to live in. The house
+    /// fill at `BusySweep.tabWash`, which is stronger in dark for the reason that type gives.
+    static let busyTabWash = dynamicTint(PaletteInk.accentFill, BusySweep.tabWash)
+
+    /// What Reduce Motion lays over a busy tab's selected capsule, which has no band to say it.
+    static let busyTabStill = dynamicTint(PaletteInk.accentFill, BusySweep.tabStill)
+
+    /// The top of the column's still wash under Reduce Motion. See `ColumnBusySignal`.
+    static let busyColumnStill = dynamicTint(PaletteInk.accentFill, BusySweep.columnStill)
 
     /// A pull request that has landed.
     ///
@@ -591,6 +590,15 @@ enum Palette {
     /// numbers are somewhere `Tests/BloomCoreTests` can walk them: see `PaletteInk`.
     static func dynamic(_ ink: PaletteInk.Pair) -> Color {
         dynamic(light: ink.light, dark: ink.dark)
+    }
+
+    /// A pair at an opacity that also differs between appearances, for a tint over chrome. Both
+    /// halves come from the core, so `PaletteContrastTests` measures the composite that is drawn.
+    static func dynamicTint(_ ink: PaletteInk.Pair, _ strength: BusySweep.Strength) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return NSColor(rgb: ink.member(dark: isDark)).withAlphaComponent(strength.member(dark: isDark))
+        })
     }
 
     /// The same thing as an `NSColor`, for the handful of places that talk to AppKit directly.
@@ -994,8 +1002,8 @@ enum Motion {
 extension View {
     /// The tab strip's background and lower divider.
     ///
-    /// The busy signal used to light this divider. It is a shimmer through each busy tab's name
-    /// now, because one line across every tab could not say which was working. See
+    /// The busy signal used to light this divider. It sweeps through each busy tab's capsule now,
+    /// because one line across every tab could not say which was working. See
     /// `BusySignalPlacement`.
     func tabStripMaterial() -> some View {
         background {

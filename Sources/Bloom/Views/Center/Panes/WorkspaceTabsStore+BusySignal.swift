@@ -4,10 +4,10 @@ import BloomCore
 /// Where the centre column says it is busy: the decision is `BusySignalPlacement`, and this is the
 /// store feeding it what a tab holds and what is running.
 ///
-/// Here rather than in the column or the strip, because the strip's names and the window title
+/// Here rather than in the column or the strip, because the strip's tabs and the column's top edge
 /// each draw a half of the answer and they must be handed the same one. The column asks once and
-/// passes the value on, so a tab's name and the title can never shimmer together while the strip
-/// appears or goes.
+/// passes the value on, so a tab and the top edge can never sweep together while the strip appears
+/// or goes.
 extension WorkspaceTabsStore {
     func busySignal(
         in model: WorkspaceModel, entries: [PaneContent], selected: PaneContent?, isStripShown: Bool

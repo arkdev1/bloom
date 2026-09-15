@@ -41,6 +41,9 @@ struct StripDivider: View {
     var selected: PaneContent?
     var carry: TabCarry
     var hover: TabStripHover
+    /// Which tabs are busy. A busy tab wears a capsule of its own, so the rules against it go the
+    /// way they do against the selected one. See `TabStripDividers`.
+    var busy: BusySignalPlacement<PaneContent>
 
     var body: some View {
         TabStripSeparator(isHidden: !isShown)
@@ -55,11 +58,13 @@ struct StripDivider: View {
             // rule flickering off and on as each passes beneath it is noise.
             let drawn = carry.target.map { lift.geometry.order(lift.run, target: $0) } ?? lift.run
             visible = TabStripDividers.visible(
-                in: drawn, selected: selected, hovered: nil, dragged: lift.content
+                in: drawn, selected: selected, hovered: nil, dragged: lift.content,
+                busy: drawn.filter(busy.showsInTab)
             )
         } else {
             visible = TabStripDividers.visible(
-                in: entries, selected: selected, hovered: hover.content, dragged: nil
+                in: entries, selected: selected, hovered: hover.content, dragged: nil,
+                busy: entries.filter(busy.showsInTab)
             )
         }
         return visible.indices.contains(slot) && visible[slot]

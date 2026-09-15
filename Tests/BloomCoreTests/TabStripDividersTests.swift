@@ -72,4 +72,29 @@ struct TabStripDividersTests {
         #expect(TabStripDividers.visible(in: ["a", "b", "c"], selected: nil, hovered: "gone", dragged: nil)
             == [true, true])
     }
+
+    /// A busy tab wears a capsule of its own, so the rules against it go the way they do against
+    /// the selected one, and a rule between two tabs at rest elsewhere stays.
+    @Test("a busy tab hides the dividers on both of its sides")
+    func busy() {
+        #expect(TabStripDividers.visible(count: 5, selected: 0, hovered: nil, dragged: nil, busy: [3])
+            == [false, true, false, false])
+        #expect(TabStripDividers.visible(count: 4, selected: nil, hovered: nil, dragged: nil, busy: [0, 1])
+            == [false, false, true])
+        // Busy and selected at once hides nothing more than selected does.
+        #expect(TabStripDividers.visible(count: 3, selected: 1, hovered: nil, dragged: nil, busy: [1])
+            == [false, false])
+        #expect(TabStripDividers.visible(count: 3, selected: nil, hovered: nil, dragged: nil, busy: [9])
+            == [true, true])
+    }
+
+    /// While a tab is carried, the busy tab's rules are the ones beside the slot it has slid into.
+    @Test("a busy tab is found in the order the strip is drawing")
+    func busyInDrawnOrder() {
+        let drawn = ["b", "c", "a", "d"]
+        #expect(TabStripDividers.visible(in: drawn, selected: nil, hovered: nil, dragged: nil, busy: ["d"])
+            == [true, true, false])
+        #expect(TabStripDividers.visible(in: drawn, selected: nil, hovered: nil, dragged: nil, busy: ["gone"])
+            == [true, true, true])
+    }
 }

@@ -42,7 +42,6 @@ public enum PaletteInk {
     public static let textTertiary = Pair(light: 0x69757B, dark: 0x769AAA)
     public static let accent = Pair(light: 0x0C7A6E, dark: 0x4FD8C4)
     public static let accentFill = Pair(light: 0x197593, dark: 0x197593)
-    public static let busyShimmer = Pair(light: 0x2F8AA8, dark: 0x6CC6E6)
     public static let negative = Pair(light: 0xB23A2E, dark: 0xEC6D61)
     public static let stop = Pair(light: 0x994842, dark: 0xD07D78)
     public static let warning = Pair(light: 0x9A6A00, dark: 0xE8A33D)

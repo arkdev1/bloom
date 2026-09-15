@@ -75,8 +75,13 @@ final class WindowTitleText {
 
     private(set) var text = "Bloom"
 
-    /// The selection whose title shimmers, because what it shows has a turn running and no tab
-    /// strip to say so in. See `BusySignalPlacement`.
+    /// The selection whose title tells VoiceOver it is running, because what it shows has a turn
+    /// under way and no tab strip to say so in. See `BusySignalPlacement`.
+    ///
+    /// The column draws that turn as a segment along its top edge, which is decoration and hidden
+    /// from VoiceOver. A tab says "Running" as its own value; with no tab, the title is the name of
+    /// the one there is, so it says it instead. That is the only reader of this now: the title's
+    /// ink is plain.
     ///
     /// Here because the column that knows is not the view that draws the title: `WindowTitleControl`
     /// is a toolbar item, and the answer depends on whether the column's strip is up, which only
@@ -95,7 +100,8 @@ final class WindowTitleText {
         text = value
     }
 
-    /// Says whether a selection's title shimmers. Clearing only clears that selection's own claim.
+    /// Says whether a selection's title reads as running. Clearing only clears that selection's own
+    /// claim.
     func setBusy(_ isBusy: Bool, for selection: SidebarSelection) {
         if isBusy {
             guard busySelection != selection else { return }

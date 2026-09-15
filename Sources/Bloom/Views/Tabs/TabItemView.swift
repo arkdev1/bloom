@@ -22,14 +22,15 @@ struct TabItemView: View {
     /// favicon and that is a picture rather than a glyph. See `TabItemIcon`.
     var icon: TabItemIcon?
     var isActive: Bool
-    /// Whether this tab's name shimmers.
+    /// Whether a band of house blue sweeps through this tab's capsule (`BusySweep`).
     ///
     /// It used to swap the icon for a pulsing dot, and a strip of several tabs drew one full width
     /// rule under all of them as well, so which tab was working was said twice and neither time
     /// clearly. Then it was a crest under the tab, which the owner reported sat underneath the tab
-    /// rather than being part of it. The name itself is the signal now, and nothing is drawn under,
-    /// around or behind the tab; the icon stays put. The caller asks `BusySignalPlacement`, so a
-    /// tab's name and the window title never both shimmer.
+    /// rather than being part of it, and then a shimmer through the name, reported as too subtle and
+    /// as having too little to animate in a short name. The whole capsule is the signal now, behind
+    /// the icon and the label, which keep their own ink. The caller asks `BusySignalPlacement`, so a
+    /// tab and the column's top edge never both sweep.
     var isRunning = false
     /// The ground of the pane this tab opens and the ink that reads on it, worn while the tab is
     /// the selected one. `TabPane.content.surface` for the centre column, `.sunken` for the bottom
@@ -125,12 +126,9 @@ struct TabItemView: View {
                     .onSubmit { onCommitRename(renameText) }
                     .onExitCommand(perform: onCancelRename)
             } else {
-                // The shimmer owns the ink, so it is handed the tab's rather than set here. Only
-                // the label: the rename field above is plain, and the band is clipped to the
-                // glyphs `lineLimit` leaves, ellipsis included.
                 Text(title)
+                    .foregroundStyle(isActive ? surface.ink : Palette.textPrimary)
                     .lineLimit(1)
-                    .busyShimmer(isRunning, ink: isActive ? surface.ink : Palette.textPrimary)
             }
         }
         .font(Typo.caption)
@@ -187,8 +185,8 @@ struct TabItemView: View {
         .help(title)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
-        // The dot used to carry "Running" as its label. A shimmer is ink and says nothing to
-        // VoiceOver, so the tab says it itself.
+        // The dot used to carry "Running" as its label. The sweep is decoration and hidden, so
+        // the tab says it itself.
         .accessibilityValue(isRunning ? "Running" : "")
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
         // Unnamed, so this is the DEFAULT action. Selecting is a tap gesture rather than a button
@@ -222,14 +220,39 @@ struct TabItemView: View {
 
     /// Keep enough of the pane's colour under the glass for custom terminal labels to stay legible.
     /// Inactive windows lose the glass finish but retain a visible selection.
-    @ViewBuilder
+    ///
+    /// A busy tab adds two things, both in the tab's own frame so a carried tab takes them with it:
+    /// `StripDragTracking` lifts, scales and offsets the whole item, this background included.
+    ///
+    /// - **A faint capsule of house blue** under a busy tab that is not selected, so the band has a
+    ///   shape to live in, as the mockup has it. Under the hover wash rather than instead of it, so
+    ///   pointing at a busy tab still answers. It fades with the sweep rather than popping.
+    /// - **The band**, over whichever capsule the tab has and clipped to it, behind the icon and
+    ///   label because this is the tab's background. Under Reduce Motion there is no band: a busy
+    ///   background tab keeps its still capsule and a busy selected one takes a slightly stronger
+    ///   still tint over its glass, so the selected tab is not the one busy tab that says nothing.
     private var background: some View {
-        if isActive {
-            TabGlassBackground(shape: Capsule(), fill: surface.fill)
-                .matchedGeometryEffect(id: Self.selectionID, in: namespace)
-        } else if isHovered {
-            Capsule().fill(Palette.hover)
+        ZStack {
+            ZStack {
+                if isRunning && !isActive {
+                    Capsule().fill(Palette.busyTabWash).transition(.opacity)
+                }
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: BusySweep.fade), value: isRunning)
+
+            if isActive {
+                TabGlassBackground(shape: Capsule(), fill: surface.fill)
+                    .matchedGeometryEffect(id: Self.selectionID, in: namespace)
+                if isRunning && reduceMotion {
+                    Capsule().fill(Palette.busyTabStill)
+                }
+            } else if isHovered {
+                Capsule().fill(Palette.hover)
+            }
+
+            BusySweepBand(figure: .tab, isActive: isRunning)
         }
+        .frame(height: Self.tabHeight)
     }
 
     /// The label reserves this target's width even when the close button is invisible.

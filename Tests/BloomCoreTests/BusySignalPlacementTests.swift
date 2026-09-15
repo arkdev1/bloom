@@ -2,19 +2,19 @@ import Testing
 @testable import BloomCore
 
 /// The busy signal used to run along the strip's rule and vanished with the strip. These are the
-/// two places it went instead, the title and the tabs' names, and the rule that it is only ever in
-/// one of them.
+/// two places it went instead, the column's top edge and the tabs themselves, and the rule that it
+/// is only ever in one of them.
 @Suite("Where the busy signal is drawn")
 struct BusySignalPlacementTests {
     private typealias Placement = BusySignalPlacement<String>
 
-    @Test("a lone tab with an agent running shimmers the window title")
+    @Test("a lone tab with an agent running sweeps the column's top edge")
     func loneBusyTab() {
         let placement = Placement.resolve(
             isStripShown: false, tabs: ["chat"], selected: "chat", isRunning: { $0 == "chat" }
         )
-        #expect(placement == .windowTitle)
-        #expect(placement.showsInWindowTitle)
+        #expect(placement == .columnTop)
+        #expect(placement.showsColumnTop)
         #expect(!placement.showsInTab("chat"))
     }
 
@@ -24,7 +24,7 @@ struct BusySignalPlacementTests {
             isStripShown: false, tabs: ["chat"], selected: "chat", isRunning: { _ in false }
         )
         #expect(placement == .none)
-        #expect(!placement.showsInWindowTitle)
+        #expect(!placement.showsColumnTop)
     }
 
     /// The column shows one tab, so a turn running in a pane of that tab is running in what is on
@@ -36,7 +36,7 @@ struct BusySignalPlacementTests {
             panes: { $0 == "chat" ? ["chat", "second"] : [$0] },
             isRunning: { $0 == "second" }
         )
-        #expect(placement == .windowTitle)
+        #expect(placement == .columnTop)
     }
 
     @Test("a selection that has not resolved falls back to the only tab")
@@ -44,7 +44,7 @@ struct BusySignalPlacementTests {
         let placement = Placement.resolve(
             isStripShown: false, tabs: ["chat"], selected: nil, isRunning: { _ in true }
         )
-        #expect(placement == .windowTitle)
+        #expect(placement == .columnTop)
         #expect(Placement.resolve(
             isStripShown: false, tabs: ["a", "b"], selected: nil, isRunning: { _ in true }
         ) == .none)
@@ -53,16 +53,16 @@ struct BusySignalPlacementTests {
         ) == .none)
     }
 
-    /// The whole reason for a per tab answer: two busy tabs shimmer, an idle tab does not, and the
-    /// title stays still because the names already say it.
-    @Test("with a strip, each busy tab's name shimmers and the title stays still")
+    /// The whole reason for a per tab answer: two busy tabs sweep, an idle tab does not, and the
+    /// column's edge stays dark because the tabs already say it.
+    @Test("with a strip, each busy tab sweeps and the column's edge stays dark")
     func perTab() {
         let placement = Placement.resolve(
             isStripShown: true, tabs: ["a", "b", "c"], selected: "b",
             isRunning: { $0 != "b" }
         )
         #expect(placement == .tabs(["a", "c"]))
-        #expect(!placement.showsInWindowTitle)
+        #expect(!placement.showsColumnTop)
         #expect(placement.showsInTab("a"))
         #expect(!placement.showsInTab("b"))
         #expect(placement.showsInTab("c"))
@@ -94,6 +94,6 @@ struct BusySignalPlacementTests {
             isStripShown: true, tabs: ["chat"], selected: "chat", isRunning: { _ in true }
         )
         #expect(shown == .tabs(["chat"]))
-        #expect(!shown.showsInWindowTitle)
+        #expect(!shown.showsColumnTop)
     }
 }

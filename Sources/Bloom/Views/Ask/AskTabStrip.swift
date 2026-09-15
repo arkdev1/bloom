@@ -2,7 +2,7 @@ import SwiftUI
 import BloomCore
 
 struct AskTabStrip: View {
-    /// Which conversations' names shimmer, resolved by `AskView` alongside the window title.
+    /// Which conversations sweep, resolved by `AskView` alongside its own top edge.
     var busy: BusySignalPlacement<SessionID>
 
     @Environment(AppModel.self) private var app
@@ -16,8 +16,13 @@ struct AskTabStrip: View {
             HStack(spacing: 0) {
                 ForEach(Array(app.ask.sessions.enumerated()), id: \.element.id) { index, chat in
                     if index > 0 {
-                        TabStripSeparator(isHidden: app.ask.selectedID == chat.id
-                            || app.ask.selectedID == app.ask.sessions[index - 1].id)
+                        // Hidden against a selected or busy capsule, as the centre strip does. See
+                        // `TabStripDividers`, which this strip has no drag or hover to feed.
+                        TabStripSeparator(isHidden: TabStripDividers.visible(
+                            in: [app.ask.sessions[index - 1].id, chat.id],
+                            selected: app.ask.selectedID, hovered: nil, dragged: nil,
+                            busy: [app.ask.sessions[index - 1].id, chat.id].filter(busy.showsInTab)
+                        ) == [false])
                     }
                     TabItemView(
                         title: app.ask.title(for: chat), icon: .symbol(PaneGlyph.chat),

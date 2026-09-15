@@ -138,48 +138,94 @@ struct RunningColourGallery: View {
 
     // MARK: The other place the window says it
 
-    /// A busy tab, beside a tab wearing a passing tick so the pair can be judged rather than
-    /// admired on its own.
+    /// Busy tabs on the strip, beside a tab wearing a passing tick so the pair can be judged rather
+    /// than admired on its own, and the column's segment with no strip.
     ///
-    /// The report named a dot on the tab and a rule under the strip. Neither is drawn any more: a
-    /// busy tab's name shimmers (`BusyShimmer`), after a crest under the tab was reported as sitting
-    /// underneath it rather than being part of it. So the row is the name, twice: one frame of the
-    /// band a third of the way through, and the still tint Reduce Motion draws instead.
+    /// The report named a dot on the tab and a rule under the strip. Neither is drawn any more, nor
+    /// the crest and the shimmer that followed: a band sweeps through a busy tab's capsule and a
+    /// segment along a column's top edge (`BusySweep`). So the rows are the sweep at one point in
+    /// its crossing, on the selected capsule and on a background tab's wash, then what Reduce Motion
+    /// draws in each place instead.
     private var elsewhere: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("On a busy tab's name")
+            Text("On busy tabs, and along a column with no strip")
                 .font(Typo.label)
                 .foregroundStyle(Palette.textSecondary)
-            Text("Held still: one frame of the band, then what Reduce Motion draws.")
+            Text("Held still: one frame of the sweep, then what Reduce Motion draws.")
                 .font(Typo.micro)
                 .foregroundStyle(Palette.textSecondary)
 
-            HStack(spacing: 10) {
-                tab(ink: AnyShapeStyle(BusyShimmerStyle.band(
-                    ink: Palette.textPrimary, phase: 0.45, strength: 1
-                ))) { Image(systemName: PaneGlyph.chat).font(Typo.caption) }
-                tab(ink: AnyShapeStyle(BusyShimmerStyle.still(ink: Palette.textPrimary))) {
-                    Image(systemName: PaneGlyph.chat).font(Typo.caption)
+            ForEach([false, true], id: \.self) { isStill in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 0) {
+                        tab(isSelected: true, isBusy: true, isStill: isStill) {
+                            Image(systemName: PaneGlyph.chat).font(Typo.caption)
+                        }
+                        tab(isSelected: false, isBusy: true, isStill: isStill) {
+                            Image(systemName: PaneGlyph.chat).font(Typo.caption)
+                        }
+                        tab(isSelected: false, isBusy: false, isStill: isStill) {
+                            WorkspaceStatusGlyph(status: .checksPassed)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 4)
+                    .frame(width: Self.columnWidth, height: 32)
+                    .background(Palette.sidebar)
+
+                    ZStack(alignment: .top) {
+                        Palette.windowBackground
+                        if isStill {
+                            LinearGradient(
+                                colors: [Palette.busyColumnStill, Palette.busyColumnStill.opacity(0)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                            .frame(height: BusySweep.columnStillHeight)
+                        } else {
+                            BusySweepStill(figure: .column, width: Self.columnWidth, progress: 0.45)
+                                .frame(height: BusySweep.columnThickness)
+                        }
+                    }
+                    .frame(width: Self.columnWidth, height: 44)
+
+                    Text(isStill ? "Reduce Motion" : "Working, 45 per cent through a crossing")
+                        .font(Typo.micro)
+                        .foregroundStyle(Palette.textTertiary)
                 }
-                tab { WorkspaceStatusGlyph(status: .checksPassed) }
-                Spacer(minLength: 0)
             }
         }
     }
 
+    /// The centre column at a window somebody would work in. `ActivityRuleGallery` uses the same
+    /// number and for the same reason.
+    private static let columnWidth: CGFloat = 760
+    /// One tab of a strip at that width, which is `TabItemView`'s widest.
+    private static let tabWidth: CGFloat = 160
+
     private func tab<Content: View>(
-        ink: AnyShapeStyle = AnyShapeStyle(Palette.textPrimary), @ViewBuilder mark: () -> Content
+        isSelected: Bool, isBusy: Bool, isStill: Bool, @ViewBuilder mark: () -> Content
     ) -> some View {
-        HStack(spacing: Metrics.spacingSmall) {
+        HStack(spacing: 6) {
             mark()
             Text("Chat")
-                .font(Typo.label)
-                .foregroundStyle(ink)
+                .font(Typo.caption)
+                .foregroundStyle(Palette.textPrimary)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 26)
-        .background(Palette.surfaceSunken)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .frame(width: Self.tabWidth, height: TabItemView.tabHeight)
+        .background {
+            ZStack {
+                if isSelected {
+                    Capsule().fill(Palette.surface)
+                    if isBusy && isStill { Capsule().fill(Palette.busyTabStill) }
+                } else if isBusy {
+                    Capsule().fill(Palette.busyTabWash)
+                }
+                if isBusy && !isStill {
+                    BusySweepStill(figure: .tab, width: Self.tabWidth, progress: 0.45)
+                        .clipShape(Capsule())
+                }
+            }
+        }
     }
 
     // MARK: The numbers

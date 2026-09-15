@@ -1,6 +1,7 @@
 import Foundation
 
-/// Where a column of tabs says it is busy: nowhere, in the window title, or in particular tabs.
+/// Where a column of tabs says it is busy: nowhere, along the column's top edge, or in particular
+/// tabs.
 ///
 /// # Where it has been, and why it is here
 ///
@@ -11,16 +12,16 @@ import Foundation
 /// could say that something was working but never which.
 ///
 /// So it moved to two places: along the column's top edge with no strip, and a short crest under
-/// each busy tab with one. The owner's report on that was that both looked bad. The tab's crest sat
-/// underneath the tab rather than being part of it, and the column's read as a hard blue line under
-/// the title bar. What replaced them is the shimmer (`BusyShimmer`): a band of light passing
-/// through the busy tab's own name, or through the window title when there is no strip to hold a
-/// name. Nothing is drawn under, around or behind anything.
+/// each busy tab with one. The owner's report on that was that the tab's crest sat underneath the
+/// tab rather than being part of it, and the column's read as a hard blue line under the title bar.
+/// A shimmer through the busy tab's name, or through the window title with no strip, came next,
+/// and was reported as too subtle in both places, with too little text in a short name to animate.
 ///
-/// Still two places and never both. **No strip**: the title shimmers, because the title is the
-/// name of the one tab there is. **A strip**: each busy tab's name shimmers and the title does not.
+/// What is drawn now is Safari's loading sweep (`BusySweep`). Still two places and never both.
+/// **No strip**: a short segment slides along the column's top edge, with no track behind it.
+/// **A strip**: a band sweeps through each busy tab's capsule, and the column's edge stays dark.
 /// The single answer is what stops the two overlapping while the strip appears or goes: the column
-/// asks this once and hands the same value to the strip and to the title.
+/// asks this once and hands the same value to the strip and to its own top edge.
 ///
 /// # What counts as busy
 ///
@@ -35,9 +36,9 @@ import Foundation
 public enum BusySignalPlacement<Tab: Hashable & Sendable>: Equatable, Sendable {
     /// Nothing is running, or nothing is showing.
     case none
-    /// The window title, because there is no strip.
-    case windowTitle
-    /// Each of these tabs' names. Never empty; an empty set is `none`.
+    /// The column's top edge, because there is no strip.
+    case columnTop
+    /// Each of these tabs' capsules. Never empty; an empty set is `none`.
     case tabs(Set<Tab>)
 
     /// - Parameters:
@@ -60,23 +61,23 @@ public enum BusySignalPlacement<Tab: Hashable & Sendable>: Equatable, Sendable {
         guard isStripShown else {
             // The visible tab, falling back to the only one when the selection has not resolved
             // yet. More than one tab with no strip is a state `TabStripVisibility` never answers,
-            // and guessing which of them is on screen would light the title for the wrong one.
+            // and guessing which of them is on screen would light the edge for the wrong one.
             let visible = selected.flatMap { tabs.contains($0) ? $0 : nil }
                 ?? (tabs.count == 1 ? tabs.first : nil)
             guard let visible, isBusy(visible) else { return .none }
-            return .windowTitle
+            return .columnTop
         }
 
         let busy = Set(tabs.filter(isBusy))
         return busy.isEmpty ? .none : .tabs(busy)
     }
 
-    /// Whether the window title carries the signal.
-    public var showsInWindowTitle: Bool {
-        self == .windowTitle
+    /// Whether the column's top edge carries the signal.
+    public var showsColumnTop: Bool {
+        self == .columnTop
     }
 
-    /// Whether this tab's name carries the signal.
+    /// Whether this tab's capsule carries the signal.
     public func showsInTab(_ tab: Tab) -> Bool {
         guard case .tabs(let busy) = self else { return false }
         return busy.contains(tab)
